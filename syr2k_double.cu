@@ -179,11 +179,11 @@ int main(int argc, char *argv[]) {
 
     std::cout << "[custom dsyr2k] " << "n: " << n << ", k: " << k << ", "
               << "latency: " << time1 << " ms, "
-              << ((long)n * k * n + k * n * k) / time1 / 1e9 << " TFLOPS"
+              << ((long)n * k * n * 2) / time1 / 1e9 << " TFLOPS"
               << std::endl;
     std::cout << "[cublas dsyr2k] " << "n: " << n << ", k: " << k << ", "
               << "latency: " << time2 << " ms, "
-              << ((long)n * k * n + k * n * k) / time2 / 1e9 << " TFLOPS"
+              << ((long)n * k * n * 2) / time2 / 1e9 << " TFLOPS"
               << std::endl;
     std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB"
               << std::endl;
