@@ -37,13 +37,15 @@ int main(int argc, char *argv[]) {
     cublasHandle_t cublasH = NULL;
 
     int m = 16384, n = 16384, nb = 512;
+    int check = 0;
 
     double const fp64_abs_tol = 1.0e-4f;
 
-    if (argc >= 4) {
+    if (argc >= 5) {
         m = atoi(argv[1]);
         n = atoi(argv[2]);
         nb = atoi(argv[3]);
+        check = atoi(argv[4]);
     }
 
     int lda = m, ldb = m;
@@ -147,14 +149,16 @@ int main(int argc, char *argv[]) {
     CUDA_CHECK(cudaEventElapsedTime(&temp_time, start, stop));
     time2 += temp_time;
 
-    CUDA_CHECK(cudaDeviceSynchronize());
-    double sonedouble = 1.0, snegonedobule = -1.0;
-    cublasDgeam(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, m, n, &sonedouble, d_B_custom, ldb,
-                &snegonedobule, d_B_cublas, ldb, d_B_custom, ldb);
-    double norm_custom = snorm(m, n, d_B_custom, ldb),
-          norm_cublas = snorm(m, n, d_B_cublas, ldb);
-    printf("norm_custom: %.6e, norm_cublas: %.6e, forward error: %.6e\n",
-           norm_custom, norm_cublas, norm_custom / norm_cublas);
+    if(check) {
+        CUDA_CHECK(cudaDeviceSynchronize());
+        double sonedouble = 1.0, snegonedobule = -1.0;
+        cublasDgeam(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, m, n, &sonedouble, d_B_custom, ldb,
+                    &snegonedobule, d_B_cublas, ldb, d_B_custom, ldb);
+        double norm_custom = snorm(m, n, d_B_custom, ldb),
+            norm_cublas = snorm(m, n, d_B_cublas, ldb);
+        printf("norm_custom: %.6e, norm_cublas: %.6e, forward error: %.6e\n",
+            norm_custom, norm_cublas, norm_custom / norm_cublas);
+    }
 
     std::cout << "[custom dtrsm] " << "m: " << m << ", n: " << n << ", "
               << "latency: " << time1 << " ms, "

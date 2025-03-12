@@ -68,13 +68,15 @@ int main(int argc, char *argv[]) {
     cublasHandle_t cublasH = NULL;
 
     int n = 16384, k = 16384, nb = 512;
+    int check = 0;
 
     double const fp64_abs_tol = 1.0f;
 
-    if (argc >= 4) {
+    if (argc >= 5) {
         n = atoi(argv[1]);
         k = atoi(argv[2]);
         nb = atoi(argv[3]);
+        check = atoi(argv[4]);
     }
 
     int lda = n, ldb = n, ldc = n;
@@ -166,16 +168,18 @@ int main(int argc, char *argv[]) {
     }
     time2 /= NUM_REPEAT;
 
-    copy_lower_to_upper(n, d_C, ldc);
-    copy_lower_to_upper(n, d_C_cublas, ldc);
-    CUDA_CHECK(cudaDeviceSynchronize());
-    float sonedouble = 1.0, snegonedobule = -1.0;
-    cublasSgeam(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, n, n, &sonedouble, d_C, ldc,
-                &snegonedobule, d_C_cublas, ldc, d_C, ldc);
-    float norm_custom = snorm(n, n, d_C, ldc),
-          norm_cublas = snorm(n, n, d_C_cublas, ldc);
-    printf("norm_custom: %.6e, norm_cublas: %.6e, forward error: %.6e\n",
-           norm_custom, norm_cublas, norm_custom / norm_cublas);
+    if(check) {
+        copy_lower_to_upper(n, d_C, ldc);
+        copy_lower_to_upper(n, d_C_cublas, ldc);
+        CUDA_CHECK(cudaDeviceSynchronize());
+        float sonedouble = 1.0, snegonedobule = -1.0;
+        cublasSgeam(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, n, n, &sonedouble, d_C, ldc,
+                    &snegonedobule, d_C_cublas, ldc, d_C, ldc);
+        float norm_custom = snorm(n, n, d_C, ldc),
+            norm_cublas = snorm(n, n, d_C_cublas, ldc);
+        printf("norm_custom: %.6e, norm_cublas: %.6e, forward error: %.6e\n",
+            norm_custom, norm_cublas, norm_custom / norm_cublas);
+    }
 
     std::cout << "[custom ssyr2k] " << "n: " << n << ", k: " << k << ", "
               << "latency: " << time1 << " ms, "
