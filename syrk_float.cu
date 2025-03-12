@@ -11,9 +11,11 @@
 
 #include "utils.h"
 
-#define NUM_WARPUP 2
+#define NUM_WARPUP 1
 #define NUM_REPEAT 2
 
+// C = alpha * A * A^T + beta * C
+// A is n * k col major, C is n * n col major 
 void syrk(cublasHandle_t cublasH, int n, int k, float alpha, float *A, int lda,
           float beta, float *C, int ldc, int nb) {
     int num_block = n / nb;

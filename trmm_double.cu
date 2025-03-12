@@ -10,9 +10,11 @@
 
 #include "utils.h"
 
-#define NUM_WARPUP 5
-#define NUM_REPEAT 5
+#define NUM_WARPUP 1
+#define NUM_REPEAT 2
 
+// C = alpha * A * B + beta * C
+// A is m * m col major Lower triangular, B is m * n col major, C is m * n col major 
 void trmm(cublasHandle_t cublasH, int m, int n, double alpha, double *A, int lda,
           double *B, int ldb, double beta, double *C, int ldc, int nb) {
     int num_block = m / nb;
@@ -60,8 +62,6 @@ int main(int argc, char *argv[]) {
 
     int lda = m, ldb = m, ldc = m;
 
-    // assert(m % nb == 0);
-
     double *d_A = nullptr;
     double *d_B = nullptr;
     double *d_C = nullptr;
@@ -71,7 +71,6 @@ int main(int argc, char *argv[]) {
 
     CUBLAS_CHECK(cublasCreate(&cublasH));
 
-    /* step 2: copy A to device */
     CUDA_CHECK(
         cudaMalloc(reinterpret_cast<void **>(&d_A), sizeof(double) * lda * m));
     CUDA_CHECK(

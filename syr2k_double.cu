@@ -12,9 +12,11 @@
 
 #include "utils.h"
 
-#define NUM_WARPUP 5
-#define NUM_REPEAT 5
+#define NUM_WARPUP 1
+#define NUM_REPEAT 2
 
+// C = alpha * A * B^T + alpha * B * A^T + beta * C
+// A is n * k col major, B is n * k col major, C is n * n col major 
 void syr2k(cublasHandle_t cublasH, int n, int k, double alpha, double *A, int lda,
            double *B, int ldb, double beta, double *C, int ldc, int nb) {
     double one = 1;
@@ -77,8 +79,6 @@ int main(int argc, char *argv[]) {
 
     int lda = n, ldb = n, ldc = n;
 
-    // assert(n % nb == 0);
-
     double *d_A = nullptr;
     double *d_B = nullptr;
     double *d_C = nullptr;
@@ -88,7 +88,6 @@ int main(int argc, char *argv[]) {
 
     CUBLAS_CHECK(cublasCreate(&cublasH));
 
-    /* step 2: copy A to device */
     CUDA_CHECK(
         cudaMalloc(reinterpret_cast<void **>(&d_A), sizeof(double) * lda * k));
     CUDA_CHECK(

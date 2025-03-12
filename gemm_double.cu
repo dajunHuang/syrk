@@ -11,9 +11,11 @@
 
 #include "utils.h"
 
-#define NUM_WARPUP 2
-#define NUM_REPEAT 2
+#define NUM_WARPUP 1
+#define NUM_REPEAT 1
 
+// C = alpha * A * B + beta * C
+// A is m * k col major, B is k * n col major, C is m * n col major 
 void gemm(cublasHandle_t cublasH, int n, int k, double alpha, double *A, int lda,
           double *B, int ldb, double beta, double *C, int ldc, int nb) {
     cublasDgemmStridedBatched(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, nb, nb, k, &alpha,
@@ -48,6 +50,7 @@ int main(int argc, char *argv[]) {
 
     int lda = n, ldb = k, ldc = n;
 
+    // not support unaligned case
     assert(n % nb == 0);
 
     double *d_A = nullptr;
@@ -59,7 +62,6 @@ int main(int argc, char *argv[]) {
 
     CUBLAS_CHECK(cublasCreate(&cublasH));
 
-    /* step 2: copy A to device */
     CUDA_CHECK(
         cudaMalloc(reinterpret_cast<void **>(&d_A), sizeof(double) * lda * k));
     CUDA_CHECK(
