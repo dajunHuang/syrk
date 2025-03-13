@@ -177,11 +177,11 @@ int main(int argc, char *argv[]) {
             norm_custom, norm_cublas, norm_custom / norm_cublas);
     }
 
-    std::cout << "[custom dsyr2k] " << "n: " << n << ", k: " << k << ", "
+    std::cout << "[custom dsyr2k] " << "m: " << n << ", n: " << k << ", "
               << "latency: " << time1 << " ms, "
               << ((long)n * k * n * 2) / time1 / 1e9 << " TFLOPS"
               << std::endl;
-    std::cout << "[cublas dsyr2k] " << "n: " << n << ", k: " << k << ", "
+    std::cout << "[cublas dsyr2k] " << "m: " << n << ", n: " << k << ", "
               << "latency: " << time2 << " ms, "
               << ((long)n * k * n * 2) / time2 / 1e9 << " TFLOPS"
               << std::endl;

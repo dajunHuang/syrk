@@ -1,1 +1,7 @@
-.vscode
+*
+!*.cu
+!*h
+!Makefile
+!*.md
+!*.sh
+!.gitignore

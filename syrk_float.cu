@@ -162,10 +162,10 @@ int main(int argc, char *argv[]) {
             norm_custom, norm_cublas, norm_custom / norm_cublas);
     }
 
-    std::cout << "[custom ssyrk] " << "n: " << n << ", k: " << k << ", "
+    std::cout << "[custom ssyrk] " << "m: " << n << ", n: " << k << ", "
               << "latency: " << time1 << " ms, " << (long)n * n * k / time1 / 1e9
               << " TFLOPS" << std::endl;
-    std::cout << "[cublas ssyrk] " << "n: " << n << ", k: " << k << ", "
+    std::cout << "[cublas ssyrk] " << "m: " << n << ", n: " << k << ", "
               << "latency: " << time2 << " ms, " << (long)n * n * k / time2 / 1e9
               << " TFLOPS" << std::endl;
     std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB"
