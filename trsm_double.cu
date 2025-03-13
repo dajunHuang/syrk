@@ -49,8 +49,6 @@ int main(int argc, char *argv[]) {
 
     int lda = m, ldb = m;
 
-    // assert(m % nb == 0);
-
     double *d_A = nullptr;
     double *d_B = nullptr;
     double *d_B_custom = nullptr;
@@ -76,29 +74,8 @@ int main(int argc, char *argv[]) {
 
     generateUniformMatrixDouble(d_B, ldb, n);
 
-    // print_device_matrix(d_A, lda, 32, 32);
-
-    // CUDA_CHECK(cudaDeviceSynchronize());
-
-    // CUDA_CHECK(cudaMemcpy(d_B_custom, d_B, ldb * n, cudaMemcpyDeviceToDevice));
-    // CUDA_CHECK(cudaMemcpy(d_B_cublas, d_B, ldb * n, cudaMemcpyDeviceToDevice));
-
-    // CUDA_CHECK(cudaDeviceSynchronize());
-
-    // trsm(cublasH, m, n, one, d_A, lda, d_B_custom, ldb, nb);
-
-    // CUDA_CHECK(cudaDeviceSynchronize());
-
-    // CUBLAS_CHECK(cublasDtrsm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER,
-    //                          CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &one, d_A,
-    //                          lda, d_B_cublas, ldb));
-    // CUDA_CHECK(cudaDeviceSynchronize());
-
-    // checkValue<<<gridb, block>>>(m, n, d_B_custom, ldb, d_B_cublas, ldb,
-    //                              fp64_abs_tol);
-
     cudaEvent_t start, stop;
-    float time1 = 0, time2 = 0, temp_time = 0;
+    float time1 = 0, temp_time = 0;
 
     CUDA_CHECK(cudaMemcpy(d_B_custom, d_B, ldb * n, cudaMemcpyDeviceToDevice));
     CUDA_CHECK(cudaEventCreate(&start));
@@ -128,26 +105,9 @@ int main(int argc, char *argv[]) {
                               sizeof(double) * ldb * n));
         CUDA_CHECK(cudaDeviceSynchronize());
         CUDA_CHECK(cudaMemcpy(d_B_cublas, d_B, ldb * n, cudaMemcpyDeviceToDevice));
-        CUDA_CHECK(cudaEventCreate(&start));
-        CUDA_CHECK(cudaEventCreate(&stop));
-
         cublasDtrsm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N,
                     CUBLAS_DIAG_NON_UNIT, m, n, &one, d_A, lda, d_B_cublas, ldb);
-
         CUDA_CHECK(cudaDeviceSynchronize());
-
-        CUDA_CHECK(cudaMemcpy(d_B_cublas, d_B, ldb * n, cudaMemcpyDeviceToDevice));
-        CUDA_CHECK(cudaDeviceSynchronize());
-        CUDA_CHECK(cudaEventRecord(start));
-
-        cublasDtrsm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N,
-                    CUBLAS_DIAG_NON_UNIT, m, n, &one, d_A, lda, d_B_cublas, ldb);
-
-        CUDA_CHECK(cudaEventRecord(stop));
-        CUDA_CHECK(cudaEventSynchronize(stop));
-        CUDA_CHECK_LAST_ERROR();
-        CUDA_CHECK(cudaEventElapsedTime(&temp_time, start, stop));
-        time2 += temp_time;
         double sonedouble = 1.0, snegonedobule = -1.0;
         cublasDgeam(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, m, n, &sonedouble, d_B_custom,
                     ldb, &snegonedobule, d_B_cublas, ldb, d_B_custom, ldb);
@@ -155,9 +115,6 @@ int main(int argc, char *argv[]) {
                norm_cublas = snorm(m, n, d_B_cublas, ldb);
         printf("norm_custom: %.6e, norm_cublas: %.6e, forward error: %.6e\n",
                norm_custom, norm_cublas, norm_custom / norm_cublas);
-        std::cout << "[cublas dtrsm] " << "m: " << m << ", n: " << n << ", "
-                  << "latency: " << time2 << " ms, " << (long)m * n * n / time2 / 1e9
-                  << " TFLOPS" << std::endl;
         CUDA_CHECK(cudaFree(d_B_cublas));
     }
 

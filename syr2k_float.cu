@@ -69,8 +69,6 @@ int main(int argc, char *argv[]) {
     int n = 16384, k = 16384, nb = 512;
     int check = 0;
 
-    // double const fp64_abs_tol = 1.0f;
-
     if (argc >= 5) {
         n = atoi(argv[1]);
         k = atoi(argv[2]);
@@ -79,8 +77,6 @@ int main(int argc, char *argv[]) {
     }
 
     int lda = n, ldb = n, ldc = n;
-
-    // assert(n % nb == 0);
 
     float *d_A = nullptr;
     float *d_B = nullptr;
@@ -97,25 +93,8 @@ int main(int argc, char *argv[]) {
     generateUniformMatrixFloat(d_A, lda, k);
     generateUniformMatrixFloat(d_B, ldb, k);
 
-    // CUDA_CHECK_LAST_ERROR();
-
-    // CUBLAS_CHECK(cublasSsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k,
-    //                           &one, d_A, lda, d_B, ldb, &zero, d_C_cublas, ldc));
-
-    // CUDA_CHECK_LAST_ERROR();
-
-    // syr2k(cublasH, n, k, one, d_A, lda, d_B, ldb, zero, d_C, ldc, nb);
-
-    // CUDA_CHECK(cudaDeviceSynchronize());
-
-    // dim3 gridc((n + 15) / 16, (n + 15) / 16);
-    // dim3 blockc(16, 16);
-
-    // checkValueLower<<<gridc, blockc>>>(n, n, d_C, ldc, d_C_cublas, ldc,
-    //                                    fp64_abs_tol);
-
     cudaEvent_t start, stop;
-    float time1 = 0, time2 = 0, temp_time = 0;
+    float time1 = 0, temp_time = 0;
 
     CUDA_CHECK(cudaEventCreate(&start));
     CUDA_CHECK(cudaEventCreate(&stop));
@@ -142,26 +121,9 @@ int main(int argc, char *argv[]) {
         float *d_C_cublas = nullptr;
         CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_C_cublas),
                               sizeof(float) * ldc * n));
-        CUDA_CHECK(cudaEventCreate(&start));
-        CUDA_CHECK(cudaEventCreate(&stop));
-        for (int i{0}; i < NUM_WARPUP; ++i) {
-            cublasSsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one,
-                         d_A, lda, d_B, ldb, &zero, d_C_cublas, ldc);
-        }
+        cublasSsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one, d_A,
+                     lda, d_B, ldb, &zero, d_C_cublas, ldc);
         CUDA_CHECK(cudaDeviceSynchronize());
-        for (int i{0}; i < NUM_REPEAT; ++i) {
-            CUDA_CHECK(cudaEventRecord(start));
-
-            cublasSsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one,
-                         d_A, lda, d_B, ldb, &zero, d_C_cublas, ldc);
-
-            CUDA_CHECK(cudaEventRecord(stop));
-            CUDA_CHECK(cudaEventSynchronize(stop));
-            CUDA_CHECK_LAST_ERROR();
-            CUDA_CHECK(cudaEventElapsedTime(&temp_time, start, stop));
-            time2 += temp_time;
-        }
-        time2 /= NUM_REPEAT;
         copy_lower_to_upper(n, d_C, ldc);
         copy_lower_to_upper(n, d_C_cublas, ldc);
         CUDA_CHECK(cudaDeviceSynchronize());
@@ -172,9 +134,6 @@ int main(int argc, char *argv[]) {
               norm_cublas = snorm(n, n, d_C_cublas, ldc);
         printf("norm_custom: %.6e, norm_cublas: %.6e, forward error: %.6e\n",
                norm_custom, norm_cublas, norm_custom / norm_cublas);
-        std::cout << "[cublas ssyr2k] " << "m: " << n << ", n: " << k << ", "
-                  << "latency: " << time2 << " ms, "
-                  << ((long)n * k * n * 2) / time2 / 1e9 << " TFLOPS" << std::endl;
         CUDA_CHECK(cudaFree(d_C_cublas));
     }
 
