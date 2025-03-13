@@ -14,7 +14,7 @@
 #define NUM_REPEAT 2
 
 // C = alpha * A * B + beta * C
-// A is m * m col major Lower triangular, B is m * n col major, C is m * n col major 
+// A is m * m col major Lower triangular, B is m * n col major, C is m * n col major
 void trmm(cublasHandle_t cublasH, int m, int n, double alpha, double *A, int lda,
           double *B, int ldb, double beta, double *C, int ldc, int nb) {
     int num_block = m / nb;
@@ -29,20 +29,19 @@ void trmm(cublasHandle_t cublasH, int m, int n, double alpha, double *A, int lda
                     A + offset + offset * lda, lda, B + offset, ldb, &beta,
                     C + offset, ldc);
     }
-    for (int i = 1; m / (i * nb) >= 1; i *= 2) {
-        num_block = (m - i * nb) / (2 * i * nb);
-        left = (m - i * nb) % (2 * i * nb);
+    for (int i = 1; i * nb < m; i *= 2) {
+        num_block = m / (2 * i * nb);
+        left = m - (num_block * 2 * i * nb);
         cublasDgemmStridedBatched(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, i * nb, n,
                                   i * nb, &alpha, A + i * nb, lda,
                                   2 * (i * nb + i * nb * lda), B, ldb, 2 * i * nb,
                                   &one, C + i * nb, ldc, 2 * i * nb, num_block);
-        if (left > 0) {
-            left = (left < i * nb) ? (left) : (i * nb);
+        if (left > i * nb) {
             int offset_row = i * nb + num_block * (2 * i * nb);
             int offset_col = num_block * (2 * i * nb);
-            cublasDgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, left, n, i * nb, &alpha,
-                        A + offset_row + offset_col * lda, lda, B + offset_col, ldb,
-                        &one, C + offset_row, ldc);
+            cublasDgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, left - i * nb, n, i * nb,
+                        &alpha, A + offset_row + offset_col * lda, lda,
+                        B + offset_col, ldb, &one, C + offset_row, ldc);
         }
     }
 }
@@ -158,9 +157,9 @@ int main(int argc, char *argv[]) {
         cublasDgeam(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, m, n, &sonedouble, d_C, ldc,
                     &snegonedobule, d_C_cublas, ldc, d_C, ldc);
         double norm_custom = snorm(m, n, d_C, ldc),
-            norm_cublas = snorm(m, n, d_C_cublas, ldc);
+               norm_cublas = snorm(m, n, d_C_cublas, ldc);
         printf("norm_custom: %.6e, norm_cublas: %.6e, forward error: %.6e\n",
-            norm_custom, norm_cublas, norm_custom / norm_cublas);
+               norm_custom, norm_cublas, norm_custom / norm_cublas);
     }
 
     std::cout << "[custom dtrmm] " << "m: " << m << ", n: " << n << ", "

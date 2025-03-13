@@ -16,7 +16,7 @@
 #define NUM_REPEAT 2
 
 // C = alpha * A * B^T + alpha * B * A^T + beta * C
-// A is n * k col major, B is n * k col major, C is n * n col major 
+// A is n * k col major, B is n * k col major, C is n * n col major
 void syr2k(cublasHandle_t cublasH, int n, int k, float alpha, float *A, int lda,
            float *B, int ldb, float beta, float *C, int ldc, int nb) {
     float one = 1;
@@ -38,9 +38,9 @@ void syr2k(cublasHandle_t cublasH, int n, int k, float alpha, float *A, int lda,
                     C + offset + offset * ldc, ldc);
     }
 
-    for (int i = 1; n / (i * nb) >= 1; i *= 2) {
-        num_block = (n - i * nb) / (2 * i * nb);
-        left = (n - i * nb) % (2 * i * nb);
+    for (int i = 1; i * nb < n; i *= 2) {
+        num_block = n / (2 * i * nb);
+        left = n - (num_block * 2 * i * nb);
         cublasSgemmStridedBatched(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, i * nb, i * nb,
                                   k, &alpha, A + i * nb, lda, 2 * i * nb, B, ldb,
                                   2 * i * nb, &beta, C + i * nb, ldc,
@@ -49,15 +49,14 @@ void syr2k(cublasHandle_t cublasH, int n, int k, float alpha, float *A, int lda,
                                   k, &alpha, B + i * nb, ldb, 2 * i * nb, A, lda,
                                   2 * i * nb, &one, C + i * nb, ldc,
                                   2 * (i * nb + i * nb * ldc), num_block);
-        if (left > 0) {
-            left = (left < i * nb) ? (left) : (i * nb);
+        if (left > i * nb) {
             int offset_row = i * nb + num_block * (2 * i * nb);
             int offset_col = num_block * (2 * i * nb);
-            cublasSgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, left, i * nb, k, &alpha,
-                        A + offset_row, lda, B + offset_col, ldb, &beta,
+            cublasSgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, left - i * nb, i * nb, k,
+                        &alpha, A + offset_row, lda, B + offset_col, ldb, &beta,
                         C + offset_row + offset_col * ldc, ldc);
-            cublasSgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, left, i * nb, k, &alpha,
-                        B + offset_row, ldb, A + offset_col, lda, &one,
+            cublasSgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, left - i * nb, i * nb, k,
+                        &alpha, B + offset_row, ldb, A + offset_col, lda, &one,
                         C + offset_row + offset_col * ldc, ldc);
         }
     }
@@ -168,7 +167,7 @@ int main(int argc, char *argv[]) {
     }
     time2 /= NUM_REPEAT;
 
-    if(check) {
+    if (check) {
         copy_lower_to_upper(n, d_C, ldc);
         copy_lower_to_upper(n, d_C_cublas, ldc);
         CUDA_CHECK(cudaDeviceSynchronize());
@@ -176,19 +175,17 @@ int main(int argc, char *argv[]) {
         cublasSgeam(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, n, n, &sonedouble, d_C, ldc,
                     &snegonedobule, d_C_cublas, ldc, d_C, ldc);
         float norm_custom = snorm(n, n, d_C, ldc),
-            norm_cublas = snorm(n, n, d_C_cublas, ldc);
+              norm_cublas = snorm(n, n, d_C_cublas, ldc);
         printf("norm_custom: %.6e, norm_cublas: %.6e, forward error: %.6e\n",
-            norm_custom, norm_cublas, norm_custom / norm_cublas);
+               norm_custom, norm_cublas, norm_custom / norm_cublas);
     }
 
     std::cout << "[custom ssyr2k] " << "m: " << n << ", n: " << k << ", "
               << "latency: " << time1 << " ms, "
-              << ((long)n * k * n * 2) / time1 / 1e9 << " TFLOPS"
-              << std::endl;
+              << ((long)n * k * n * 2) / time1 / 1e9 << " TFLOPS" << std::endl;
     std::cout << "[cublas ssyr2k] " << "m: " << n << ", n: " << k << ", "
               << "latency: " << time2 << " ms, "
-              << ((long)n * k * n * 2) / time2 / 1e9 << " TFLOPS"
-              << std::endl;
+              << ((long)n * k * n * 2) / time2 / 1e9 << " TFLOPS" << std::endl;
     std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB"
               << std::endl;
 

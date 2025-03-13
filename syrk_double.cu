@@ -15,35 +15,35 @@
 #define NUM_REPEAT 2
 
 // C = alpha * A * A^T + beta * C
-// A is n * k col major, C is n * n col major 
+// A is n * k col major, C is n * n col major
 void syrk(cublasHandle_t cublasH, int n, int k, double alpha, double *A, int lda,
-    double beta, double *C, int ldc, int nb) {
+          double beta, double *C, int ldc, int nb) {
     int num_block = n / nb;
     int left = n % nb;
     cublasDgemmStridedBatched(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, nb, nb, k, &alpha,
-                            A, lda, nb, A, lda, nb, &beta, C, ldc, nb + nb * ldc,
-                            num_block);
+                              A, lda, nb, A, lda, nb, &beta, C, ldc, nb + nb * ldc,
+                              num_block);
     if (left > 0) {
-    int offset = num_block * nb;
-    cublasDgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, left, left, k, &alpha, A + offset,
-                lda, A + offset, lda, &beta, C + offset + offset * ldc, ldc);
+        int offset = num_block * nb;
+        cublasDgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, left, left, k, &alpha,
+                    A + offset, lda, A + offset, lda, &beta,
+                    C + offset + offset * ldc, ldc);
     }
 
-    for (int i = 1; n / (i * nb) >= 1; i *= 2) {
-    num_block = (n - i * nb) / (2 * i * nb);
-    left = (n - i * nb) % (2 * i * nb);
-    cublasDgemmStridedBatched(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, i * nb, i * nb,
-                                k, &alpha, A + i * nb, lda, 2 * i * nb, A, lda,
-                                2 * i * nb, &beta, C + i * nb, ldc,
-                                2 * (i * nb + i * nb * ldc), num_block);
-    if (left > 0) {
-        left = (left < i * nb) ? (left) : (i * nb);
-        int offset_row = i * nb + num_block * (2 * i * nb);
-        int offset_col = num_block * (2 * i * nb);
-        cublasDgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, left, i * nb, k, &alpha,
-                    A + offset_row, lda, A + offset_col, lda, &beta,
-                    C + offset_row + offset_col * ldc, ldc);
-    }
+    for (int i = 1; i * nb < n; i *= 2) {
+        num_block = n / (2 * i * nb);
+        left = n - (num_block * 2 * i * nb);
+        cublasDgemmStridedBatched(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, i * nb, i * nb,
+                                  k, &alpha, A + i * nb, lda, 2 * i * nb, A, lda,
+                                  2 * i * nb, &beta, C + i * nb, ldc,
+                                  2 * (i * nb + i * nb * ldc), num_block);
+        if (left > i * nb) {
+            int offset_row = i * nb + num_block * (2 * i * nb);
+            int offset_col = num_block * (2 * i * nb);
+            cublasDgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, left - i * nb, i * nb, k,
+                        &alpha, A + offset_row, lda, A + offset_col, lda, &beta,
+                        C + offset_row + offset_col * ldc, ldc);
+        }
     }
     return;
 }
@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
     }
     time2 /= NUM_REPEAT;
 
-    if(check) {
+    if (check) {
         copy_lower_to_upper(n, d_C, ldc);
         copy_lower_to_upper(n, d_C_cublas, ldc);
         CUDA_CHECK(cudaDeviceSynchronize());
@@ -160,9 +160,9 @@ int main(int argc, char *argv[]) {
         cublasDgeam(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, n, n, &sonedouble, d_C, ldc,
                     &snegonedobule, d_C_cublas, ldc, d_C, ldc);
         double norm_custom = snorm(n, n, d_C, ldc),
-            norm_cublas = snorm(n, n, d_C_cublas, ldc);
+               norm_cublas = snorm(n, n, d_C_cublas, ldc);
         printf("norm_custom: %.6e, norm_cublas: %.6e, forward error: %.6e\n",
-            norm_custom, norm_cublas, norm_custom / norm_cublas);
+               norm_custom, norm_cublas, norm_custom / norm_cublas);
     }
 
     std::cout << "[custom dsyrk] " << "m: " << n << ", n: " << k << ", "

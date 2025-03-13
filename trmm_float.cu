@@ -29,20 +29,19 @@ void trmm(cublasHandle_t cublasH, int m, int n, float alpha, float *A, int lda,
                     A + offset + offset * lda, lda, B + offset, ldb, &beta,
                     C + offset, ldc);
     }
-    for (int i = 1; m / (i * nb) >= 1; i *= 2) {
-        num_block = (m - i * nb) / (2 * i * nb);
-        left = (m - i * nb) % (2 * i * nb);
+    for (int i = 1; i * nb < m; i *= 2) {
+        num_block = m / (2 * i * nb);
+        left = m - (num_block * 2 * i * nb);
         cublasSgemmStridedBatched(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, i * nb, n,
                                   i * nb, &alpha, A + i * nb, lda,
                                   2 * (i * nb + i * nb * lda), B, ldb, 2 * i * nb,
                                   &one, C + i * nb, ldc, 2 * i * nb, num_block);
-        if (left > 0) {
-            left = (left < i * nb) ? (left) : (i * nb);
+        if (left > i * nb) {
             int offset_row = i * nb + num_block * (2 * i * nb);
             int offset_col = num_block * (2 * i * nb);
-            cublasSgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, left, n, i * nb, &alpha,
-                        A + offset_row + offset_col * lda, lda, B + offset_col, ldb,
-                        &one, C + offset_row, ldc);
+            cublasSgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, left - i * nb, n, i * nb,
+                        &alpha, A + offset_row + offset_col * lda, lda,
+                        B + offset_col, ldb, &one, C + offset_row, ldc);
         }
     }
 }
