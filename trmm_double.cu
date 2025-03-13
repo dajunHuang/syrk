@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
     int m = 16384, n = 16384, nb = 512;
     int check = 0;
 
-    double const fp64_abs_tol = 1.0e-4f;
+    // double const fp64_abs_tol = 1.0e-4f;
 
     if (argc >= 5) {
         m = atoi(argv[1]);
@@ -84,25 +84,25 @@ int main(int argc, char *argv[]) {
     generateUniformMatrixDouble(d_A, lda, m);
     generateUniformMatrixDouble(d_B, ldb, n);
 
-    dim3 grida((m + 15) / 16, (m + 31) / 16);
-    dim3 blocka(16, 16);
-    setInitialValueUpper<double><<<grida, blocka>>>(m, m, d_A, lda, 0);
+    // dim3 grida((m + 15) / 16, (m + 31) / 16);
+    // dim3 blocka(16, 16);
+    // setInitialValueUpper<double><<<grida, blocka>>>(m, m, d_A, lda, 0);
 
-    CUDA_CHECK(cudaDeviceSynchronize());
+    // CUDA_CHECK(cudaDeviceSynchronize());
 
-    trmm(cublasH, m, n, one, d_A, lda, d_B, ldb, zero, d_C, ldc, nb);
+    // trmm(cublasH, m, n, one, d_A, lda, d_B, ldb, zero, d_C, ldc, nb);
 
-    CUDA_CHECK_LAST_ERROR();
+    // CUDA_CHECK_LAST_ERROR();
 
-    CUBLAS_CHECK(cublasDtrmm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER,
-                             CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &one, d_A, lda,
-                             d_B, ldb, d_C_cublas, ldc));
+    // CUBLAS_CHECK(cublasDtrmm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER,
+    //                          CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &one, d_A, lda,
+    //                          d_B, ldb, d_C_cublas, ldc));
 
-    CUDA_CHECK(cudaDeviceSynchronize());
+    // CUDA_CHECK(cudaDeviceSynchronize());
 
-    dim3 gridc((m + 15) / 16, (n + 15) / 16);
-    dim3 blockc(16, 16);
-    checkValue<<<gridc, blockc>>>(m, n, d_C, ldc, d_C_cublas, ldc, fp64_abs_tol);
+    // dim3 gridc((m + 15) / 16, (n + 15) / 16);
+    // dim3 blockc(16, 16);
+    // checkValue<<<gridc, blockc>>>(m, n, d_C, ldc, d_C_cublas, ldc, fp64_abs_tol);
 
     cudaEvent_t start, stop;
     float time1 = 0, time2 = 0, temp_time = 0;

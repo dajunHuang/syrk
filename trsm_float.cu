@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
     int m = 16384, n = 16384, nb = 512;
     int check = 0;
 
-    float const fp32_abs_tol = 1.0e-1f;
+    // float const fp32_abs_tol = 1.0e-1f;
 
     if (argc >= 5) {
         m = atoi(argv[1]);
@@ -78,22 +78,22 @@ int main(int argc, char *argv[]) {
 
     CUDA_CHECK(cudaDeviceSynchronize());
 
-    CUDA_CHECK(cudaMemcpy(d_B_custom, d_B, ldb * n, cudaMemcpyDeviceToDevice));
-    CUDA_CHECK(cudaMemcpy(d_B_cublas, d_B, ldb * n, cudaMemcpyDeviceToDevice));
+    // CUDA_CHECK(cudaMemcpy(d_B_custom, d_B, ldb * n, cudaMemcpyDeviceToDevice));
+    // CUDA_CHECK(cudaMemcpy(d_B_cublas, d_B, ldb * n, cudaMemcpyDeviceToDevice));
 
-    CUDA_CHECK(cudaDeviceSynchronize());
+    // CUDA_CHECK(cudaDeviceSynchronize());
 
-    trsm(cublasH, m, n, one, d_A, lda, d_B_custom, ldb, nb);
+    // trsm(cublasH, m, n, one, d_A, lda, d_B_custom, ldb, nb);
 
-    CUDA_CHECK(cudaDeviceSynchronize());
+    // CUDA_CHECK(cudaDeviceSynchronize());
 
-    CUBLAS_CHECK(cublasStrsm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER,
-                             CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &one, d_A, lda,
-                             d_B_cublas, ldb));
-    CUDA_CHECK(cudaDeviceSynchronize());
+    // CUBLAS_CHECK(cublasStrsm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER,
+    //                          CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &one, d_A, lda,
+    //                          d_B_cublas, ldb));
+    // CUDA_CHECK(cudaDeviceSynchronize());
 
-    checkValue<<<gridb, block>>>(m, n, d_B_custom, ldb, d_B_cublas, ldb,
-                                 fp32_abs_tol);
+    // checkValue<<<gridb, block>>>(m, n, d_B_custom, ldb, d_B_cublas, ldb,
+    //                              fp32_abs_tol);
 
     cudaEvent_t start, stop;
     float time1 = 0, time2 = 0, temp_time = 0;

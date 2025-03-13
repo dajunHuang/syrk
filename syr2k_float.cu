@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
     int n = 16384, k = 16384, nb = 512;
     int check = 0;
 
-    double const fp64_abs_tol = 1.0f;
+    // double const fp64_abs_tol = 1.0f;
 
     if (argc >= 5) {
         n = atoi(argv[1]);
@@ -100,27 +100,22 @@ int main(int argc, char *argv[]) {
     generateUniformMatrixFloat(d_A, lda, k);
     generateUniformMatrixFloat(d_B, ldb, k);
 
-    CUDA_CHECK_LAST_ERROR();
+    // CUDA_CHECK_LAST_ERROR();
 
-    CUBLAS_CHECK(cublasSsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k,
-                              &one, d_A, lda, d_B, ldb, &zero, d_C_cublas, ldc));
+    // CUBLAS_CHECK(cublasSsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k,
+    //                           &one, d_A, lda, d_B, ldb, &zero, d_C_cublas, ldc));
 
-    CUDA_CHECK_LAST_ERROR();
+    // CUDA_CHECK_LAST_ERROR();
 
-    syr2k(cublasH, n, k, one, d_A, lda, d_B, ldb, zero, d_C, ldc, nb);
+    // syr2k(cublasH, n, k, one, d_A, lda, d_B, ldb, zero, d_C, ldc, nb);
 
-    CUDA_CHECK(cudaDeviceSynchronize());
+    // CUDA_CHECK(cudaDeviceSynchronize());
 
-    // printf("d_C:\n");
-    // print_device_matrix(d_C, ldc, 16, 16);
-    // printf("d_C_cublas:\n");
-    // print_device_matrix(d_C_cublas, ldc, 16, 16);
+    // dim3 gridc((n + 15) / 16, (n + 15) / 16);
+    // dim3 blockc(16, 16);
 
-    dim3 gridc((n + 15) / 16, (n + 15) / 16);
-    dim3 blockc(16, 16);
-
-    checkValueLower<<<gridc, blockc>>>(n, n, d_C, ldc, d_C_cublas, ldc,
-                                       fp64_abs_tol);
+    // checkValueLower<<<gridc, blockc>>>(n, n, d_C, ldc, d_C_cublas, ldc,
+    //                                    fp64_abs_tol);
 
     cudaEvent_t start, stop;
     float time1 = 0, time2 = 0, temp_time = 0;
