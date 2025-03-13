@@ -85,7 +85,6 @@ int main(int argc, char *argv[]) {
     float *d_A = nullptr;
     float *d_B = nullptr;
     float *d_C = nullptr;
-    float *d_C_cublas = nullptr;
 
     float one = 1, zero = 0;
 
@@ -94,8 +93,6 @@ int main(int argc, char *argv[]) {
     CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_A), sizeof(float) * lda * k));
     CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_B), sizeof(float) * lda * k));
     CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_C), sizeof(float) * ldc * n));
-    CUDA_CHECK(
-        cudaMalloc(reinterpret_cast<void **>(&d_C_cublas), sizeof(float) * ldc * n));
 
     generateUniformMatrixFloat(d_A, lda, k);
     generateUniformMatrixFloat(d_B, ldb, k);
@@ -141,28 +138,30 @@ int main(int argc, char *argv[]) {
 
     CUDA_CHECK(cudaDeviceSynchronize());
 
-    CUDA_CHECK(cudaEventCreate(&start));
-    CUDA_CHECK(cudaEventCreate(&stop));
-    for (int i{0}; i < NUM_WARPUP; ++i) {
-        cublasSsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one, d_A,
-                     lda, d_B, ldb, &zero, d_C_cublas, ldc);
-    }
-    CUDA_CHECK(cudaDeviceSynchronize());
-    for (int i{0}; i < NUM_REPEAT; ++i) {
-        CUDA_CHECK(cudaEventRecord(start));
-
-        cublasSsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one, d_A,
-                     lda, d_B, ldb, &zero, d_C_cublas, ldc);
-
-        CUDA_CHECK(cudaEventRecord(stop));
-        CUDA_CHECK(cudaEventSynchronize(stop));
-        CUDA_CHECK_LAST_ERROR();
-        CUDA_CHECK(cudaEventElapsedTime(&temp_time, start, stop));
-        time2 += temp_time;
-    }
-    time2 /= NUM_REPEAT;
-
     if (check) {
+        float *d_C_cublas = nullptr;
+        CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_C_cublas),
+                              sizeof(float) * ldc * n));
+        CUDA_CHECK(cudaEventCreate(&start));
+        CUDA_CHECK(cudaEventCreate(&stop));
+        for (int i{0}; i < NUM_WARPUP; ++i) {
+            cublasSsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one,
+                         d_A, lda, d_B, ldb, &zero, d_C_cublas, ldc);
+        }
+        CUDA_CHECK(cudaDeviceSynchronize());
+        for (int i{0}; i < NUM_REPEAT; ++i) {
+            CUDA_CHECK(cudaEventRecord(start));
+
+            cublasSsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one,
+                         d_A, lda, d_B, ldb, &zero, d_C_cublas, ldc);
+
+            CUDA_CHECK(cudaEventRecord(stop));
+            CUDA_CHECK(cudaEventSynchronize(stop));
+            CUDA_CHECK_LAST_ERROR();
+            CUDA_CHECK(cudaEventElapsedTime(&temp_time, start, stop));
+            time2 += temp_time;
+        }
+        time2 /= NUM_REPEAT;
         copy_lower_to_upper(n, d_C, ldc);
         copy_lower_to_upper(n, d_C_cublas, ldc);
         CUDA_CHECK(cudaDeviceSynchronize());
@@ -173,14 +172,15 @@ int main(int argc, char *argv[]) {
               norm_cublas = snorm(n, n, d_C_cublas, ldc);
         printf("norm_custom: %.6e, norm_cublas: %.6e, forward error: %.6e\n",
                norm_custom, norm_cublas, norm_custom / norm_cublas);
+        std::cout << "[cublas ssyr2k] " << "m: " << n << ", n: " << k << ", "
+                  << "latency: " << time2 << " ms, "
+                  << ((long)n * k * n * 2) / time2 / 1e9 << " TFLOPS" << std::endl;
+        CUDA_CHECK(cudaFree(d_C_cublas));
     }
 
     std::cout << "[custom ssyr2k] " << "m: " << n << ", n: " << k << ", "
               << "latency: " << time1 << " ms, "
               << ((long)n * k * n * 2) / time1 / 1e9 << " TFLOPS" << std::endl;
-    std::cout << "[cublas ssyr2k] " << "m: " << n << ", n: " << k << ", "
-              << "latency: " << time2 << " ms, "
-              << ((long)n * k * n * 2) / time2 / 1e9 << " TFLOPS" << std::endl;
     std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB"
               << std::endl;
 
@@ -188,7 +188,6 @@ int main(int argc, char *argv[]) {
     CUDA_CHECK(cudaFree(d_A));
     CUDA_CHECK(cudaFree(d_B));
     CUDA_CHECK(cudaFree(d_C));
-    CUDA_CHECK(cudaFree(d_C_cublas));
 
     CUBLAS_CHECK(cublasDestroy(cublasH));
     CUDA_CHECK(cudaDeviceReset());
