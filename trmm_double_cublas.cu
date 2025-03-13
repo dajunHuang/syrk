@@ -16,14 +16,14 @@
 int main(int argc, char *argv[]) {
     cublasHandle_t cublasH = NULL;
 
-    int m = 16384, n = 16384;
+    long m = 16384, n = 16384;
 
     if (argc >= 3) {
         m = atoi(argv[1]);
         n = atoi(argv[2]);
     }
 
-    int lda = m, ldb = m, ldc = m;
+    long lda = m, ldb = m, ldc = m;
 
     double *d_A = nullptr;
     double *d_B = nullptr;

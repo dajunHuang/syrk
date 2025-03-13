@@ -16,21 +16,21 @@
 
 // C = alpha * A * A^T + beta * C
 // A is n * k col major, C is n * n col major
-void syrk(cublasHandle_t cublasH, int n, int k, float alpha, float *A, int lda,
-          float beta, float *C, int ldc, int nb) {
-    int num_block = n / nb;
-    int left = n % nb;
+void syrk(cublasHandle_t cublasH, long n, long k, float alpha, float *A, long lda,
+          float beta, float *C, long ldc, long nb) {
+    long num_block = n / nb;
+    long left = n % nb;
     cublasSgemmStridedBatched(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, nb, nb, k, &alpha,
                               A, lda, nb, A, lda, nb, &beta, C, ldc, nb + nb * ldc,
                               num_block);
     if (left > 0) {
-        int offset = num_block * nb;
+        long offset = num_block * nb;
         cublasSgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, left, left, k, &alpha,
                     A + offset, lda, A + offset, lda, &beta,
                     C + offset + offset * ldc, ldc);
     }
 
-    for (int i = 1; i * nb < n; i *= 2) {
+    for (long i = 1; i * nb < n; i *= 2) {
         num_block = n / (2 * i * nb);
         left = n - (num_block * 2 * i * nb);
         cublasSgemmStridedBatched(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, i * nb, i * nb,
@@ -38,8 +38,8 @@ void syrk(cublasHandle_t cublasH, int n, int k, float alpha, float *A, int lda,
                                   2 * i * nb, &beta, C + i * nb, ldc,
                                   2 * (i * nb + i * nb * ldc), num_block);
         if (left > i * nb) {
-            int offset_row = i * nb + num_block * (2 * i * nb);
-            int offset_col = num_block * (2 * i * nb);
+            long offset_row = i * nb + num_block * (2 * i * nb);
+            long offset_col = num_block * (2 * i * nb);
             cublasSgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, left - i * nb, i * nb, k,
                         &alpha, A + offset_row, lda, A + offset_col, lda, &beta,
                         C + offset_row + offset_col * ldc, ldc);
@@ -51,7 +51,7 @@ void syrk(cublasHandle_t cublasH, int n, int k, float alpha, float *A, int lda,
 int main(int argc, char *argv[]) {
     cublasHandle_t cublasH = NULL;
 
-    int n = 16384, k = 16384, nb = 512;
+    long n = 16384, k = 16384, nb = 512;
     int check = 0;
 
     if (argc >= 5) {
@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
         check = atoi(argv[4]);
     }
 
-    int lda = n, ldc = n;
+    long lda = n, ldc = n;
 
     float *d_A = nullptr;
     float *d_C = nullptr;

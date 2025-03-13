@@ -72,36 +72,37 @@
 static const size_t device_alignment = 32;
 
 template <typename T>
-__global__ void setInitialValue(int m, int n, T *a, int lda, T val) {
-    int i = threadIdx.x + blockDim.x * blockIdx.x;
-    int j = threadIdx.y + blockDim.y * blockIdx.y;
+__global__ void setInitialValue(long m, long n, T *a, long lda, T val) {
+    long i = threadIdx.x + blockDim.x * blockIdx.x;
+    long j = threadIdx.y + blockDim.y * blockIdx.y;
     if (i < m && j < n) {
         a[i + j * lda] = val;
     }
 }
 
 template <typename T>
-__global__ void setInitialValueUpper(int m, int n, T *a, int lda, T val) {
-    int i = threadIdx.x + blockDim.x * blockIdx.x;
-    int j = threadIdx.y + blockDim.y * blockIdx.y;
+__global__ void setInitialValueUpper(long m, long n, T *a, long lda, T val) {
+    long i = threadIdx.x + blockDim.x * blockIdx.x;
+    long j = threadIdx.y + blockDim.y * blockIdx.y;
     if (i < j && i < m && j < n) {
         a[i + j * lda] = val;
     }
 }
 
 template <typename T>
-__global__ void setInitialValueLower(int m, int n, T *a, int lda, T val) {
-    int i = threadIdx.x + blockDim.x * blockIdx.x;
-    int j = threadIdx.y + blockDim.y * blockIdx.y;
+__global__ void setInitialValueLower(long m, long n, T *a, long lda, T val) {
+    long i = threadIdx.x + blockDim.x * blockIdx.x;
+    long j = threadIdx.y + blockDim.y * blockIdx.y;
     if (i > j && i < m && j < n) {
         a[i + j * lda] = val;
     }
 }
 
 template <typename T>
-__global__ void checkValue(int m, int n, T *A, int lda, T *B, int ldb, double tol) {
-    int i = threadIdx.x + blockDim.x * blockIdx.x;
-    int j = threadIdx.y + blockDim.y * blockIdx.y;
+__global__ void checkValue(long m, long n, T *A, long lda, T *B, long ldb,
+                           double tol) {
+    long i = threadIdx.x + blockDim.x * blockIdx.x;
+    long j = threadIdx.y + blockDim.y * blockIdx.y;
     if (i < m && j < n) {
         double const A_val{static_cast<double>(A[i + j * lda])};
         double const B_val{static_cast<double>(B[i + j * ldb])};
@@ -114,10 +115,10 @@ __global__ void checkValue(int m, int n, T *A, int lda, T *B, int ldb, double to
 }
 
 template <typename T>
-__global__ void checkValueLower(int m, int n, T *A, int lda, T *B, int ldb,
+__global__ void checkValueLower(long m, long n, T *A, long lda, T *B, long ldb,
                                 double tol) {
-    int i = threadIdx.x + blockDim.x * blockIdx.x;
-    int j = threadIdx.y + blockDim.y * blockIdx.y;
+    long i = threadIdx.x + blockDim.x * blockIdx.x;
+    long j = threadIdx.y + blockDim.y * blockIdx.y;
     if (i > j && i < m && j < n) {
         double const A_val{static_cast<double>(A[i + j * lda])};
         double const B_val{static_cast<double>(B[i + j * ldb])};
@@ -129,7 +130,7 @@ __global__ void checkValueLower(int m, int n, T *A, int lda, T *B, int ldb,
     }
 }
 
-void generateUniformMatrixDouble(double *dA, int m, int n) {
+void generateUniformMatrixDouble(double *dA, long m, long n) {
     curandGenerator_t gen;
     curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
     int seed = 3000;
@@ -137,7 +138,7 @@ void generateUniformMatrixDouble(double *dA, int m, int n) {
     curandGenerateUniformDouble(gen, dA, long(m * n));
 }
 
-void generateUniformMatrixFloat(float *dA, int m, int n) {
+void generateUniformMatrixFloat(float *dA, long m, long n) {
     curandGenerator_t gen;
     curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
     int seed = 3000;
@@ -152,8 +153,8 @@ size_t free_mem() {
 }
 
 template <typename T>
-__global__ void frobenius_norm_kernelDouble(int64_t m, int64_t n, T *A,
-                                            int64_t lda, T *norm) {
+__global__ void frobenius_norm_kernelDouble(int64_t m, int64_t n, T *A, int64_t lda,
+                                            T *norm) {
     int64_t idx_x = threadIdx.x + blockDim.x * blockIdx.x;
     int64_t idx_y = threadIdx.y + blockDim.y * blockIdx.y;
 
@@ -167,8 +168,8 @@ __global__ void frobenius_norm_kernelDouble(int64_t m, int64_t n, T *A,
 }
 
 template <typename T>
-T snorm(long int m, long int n, T *d_A, long int lda) {
-    const long int BLOCK_SIZE = 16;
+T snorm(long m, long n, T *d_A, long lda) {
+    const long BLOCK_SIZE = 16;
     dim3 blockDim(BLOCK_SIZE, BLOCK_SIZE);
     dim3 gridDim((m + BLOCK_SIZE - 1) / BLOCK_SIZE,
                  (n + BLOCK_SIZE - 1) / BLOCK_SIZE);
@@ -189,17 +190,17 @@ T snorm(long int m, long int n, T *d_A, long int lda) {
 }
 
 template <typename T>
-__global__ void copy_lower_to_upper_kernel(int n, T *A, long int lda) {
-    int i = threadIdx.x + blockDim.x * blockIdx.x;
-    int j = threadIdx.y + blockDim.y * blockIdx.y;
+__global__ void copy_lower_to_upper_kernel(long n, T *A, long lda) {
+    long i = threadIdx.x + blockDim.x * blockIdx.x;
+    long j = threadIdx.y + blockDim.y * blockIdx.y;
     if (i < n && j < n) {
         if (i < j) A[i + j * lda] = A[j + i * lda];
     }
 }
 
 template <typename T>
-void copy_lower_to_upper(int n, T *A, long int lda) {
-    const long int BLOCK_SIZE = 16;
+void copy_lower_to_upper(long n, T *A, long lda) {
+    const long BLOCK_SIZE = 16;
     dim3 blockDim(BLOCK_SIZE, BLOCK_SIZE);
     dim3 gridDim((n + BLOCK_SIZE - 1) / BLOCK_SIZE,
                  (n + BLOCK_SIZE - 1) / BLOCK_SIZE);
@@ -207,11 +208,11 @@ void copy_lower_to_upper(int n, T *A, long int lda) {
 }
 
 template <typename T>
-void print_device_matrix(T *dA, int ldA, int rows, int cols) {
+void print_device_matrix(T *dA, long ldA, long rows, long cols) {
     T matrix;
 
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
+    for (long i = 0; i < rows; i++) {
+        for (long j = 0; j < cols; j++) {
             cudaMemcpy(&matrix, dA + i + j * ldA, sizeof(T), cudaMemcpyDeviceToHost);
             printf("%5.2f ", matrix);
         }

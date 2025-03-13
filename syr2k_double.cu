@@ -17,11 +17,11 @@
 
 // C = alpha * A * B^T + alpha * B * A^T + beta * C
 // A is n * k col major, B is n * k col major, C is n * n col major
-void syr2k(cublasHandle_t cublasH, int n, int k, double alpha, double *A, int lda,
-           double *B, int ldb, double beta, double *C, int ldc, int nb) {
+void syr2k(cublasHandle_t cublasH, long n, long k, double alpha, double *A, long lda,
+           double *B, long ldb, double beta, double *C, long ldc, long nb) {
     double one = 1;
-    int num_block = n / nb;
-    int left = n % nb;
+    long num_block = n / nb;
+    long left = n % nb;
     cublasDgemmStridedBatched(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, nb, nb, k, &alpha,
                               A, lda, nb, B, ldb, nb, &beta, C, ldc, nb + nb * ldc,
                               num_block);
@@ -29,7 +29,7 @@ void syr2k(cublasHandle_t cublasH, int n, int k, double alpha, double *A, int ld
                               B, ldb, nb, A, lda, nb, &one, C, ldc, nb + nb * ldc,
                               num_block);
     if (left > 0) {
-        int offset = num_block * nb;
+        long offset = num_block * nb;
         cublasDgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, left, left, k, &alpha,
                     A + offset, lda, B + offset, ldb, &beta,
                     C + offset + offset * ldc, ldc);
@@ -38,7 +38,7 @@ void syr2k(cublasHandle_t cublasH, int n, int k, double alpha, double *A, int ld
                     C + offset + offset * ldc, ldc);
     }
 
-    for (int i = 1; i * nb < n; i *= 2) {
+    for (long i = 1; i * nb < n; i *= 2) {
         num_block = n / (2 * i * nb);
         left = n - (num_block * 2 * i * nb);
         cublasDgemmStridedBatched(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, i * nb, i * nb,
@@ -50,8 +50,8 @@ void syr2k(cublasHandle_t cublasH, int n, int k, double alpha, double *A, int ld
                                   2 * i * nb, &one, C + i * nb, ldc,
                                   2 * (i * nb + i * nb * ldc), num_block);
         if (left > i * nb) {
-            int offset_row = i * nb + num_block * (2 * i * nb);
-            int offset_col = num_block * (2 * i * nb);
+            long offset_row = i * nb + num_block * (2 * i * nb);
+            long offset_col = num_block * (2 * i * nb);
             cublasDgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_T, left - i * nb, i * nb, k,
                         &alpha, A + offset_row, lda, B + offset_col, ldb, &beta,
                         C + offset_row + offset_col * ldc, ldc);
@@ -66,7 +66,7 @@ void syr2k(cublasHandle_t cublasH, int n, int k, double alpha, double *A, int ld
 int main(int argc, char *argv[]) {
     cublasHandle_t cublasH = NULL;
 
-    int n = 16384, k = 16384, nb = 512;
+    long n = 16384, k = 16384, nb = 512;
     int check = 0;
 
     if (argc >= 5) {
@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
         check = atoi(argv[4]);
     }
 
-    int lda = n, ldb = n, ldc = n;
+    long lda = n, ldb = n, ldc = n;
 
     double *d_A = nullptr;
     double *d_B = nullptr;

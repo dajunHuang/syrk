@@ -12,8 +12,8 @@
 
 // A * X = alpha * B
 // A is m * m col major Lower triangular, B is m * n col major, overwrited by X
-void trsm(cublasHandle_t cublasH, int m, int n, double alpha, double *A, int lda,
-          double *B, int ldb, int nb) {
+void trsm(cublasHandle_t cublasH, long m, long n, double alpha, double *A, long lda,
+          double *B, long ldb, long nb) {
     double sonedouble = 1.0, snegonedobule = -1.0;
     if (m <= nb) {
         CUBLAS_CHECK(cublasDtrsm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER,
@@ -24,7 +24,7 @@ void trsm(cublasHandle_t cublasH, int m, int n, double alpha, double *A, int lda
 
     trsm(cublasH, m / 2, n, alpha, A, lda, B, ldb, nb);
 
-    int left = m - m / 2;
+    long left = m - m / 2;
     CUBLAS_CHECK(cublasDgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, left, n, m / 2,
                              &snegonedobule, A + m / 2, lda, B, ldb, &sonedouble,
                              B + m / 2, ldb));
@@ -35,7 +35,7 @@ void trsm(cublasHandle_t cublasH, int m, int n, double alpha, double *A, int lda
 int main(int argc, char *argv[]) {
     cublasHandle_t cublasH = NULL;
 
-    int m = 16384, n = 16384, nb = 512;
+    long m = 16384, n = 16384, nb = 512;
     int check = 0;
 
     // double const fp64_abs_tol = 1.0e-4f;
@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
         check = atoi(argv[4]);
     }
 
-    int lda = m, ldb = m;
+    long lda = m, ldb = m;
 
     double *d_A = nullptr;
     double *d_B = nullptr;
