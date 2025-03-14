@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
     CUDA_CHECK(cudaDeviceSynchronize());
 
     std::cout << "[cublas dtrsm] " << "m: " << m << ", n: " << n << ", "
-              << "latency: " << time1 << " ms, " << (long)m * n * n / time1 / 1e9
+              << "latency: " << time1 << " ms, " << (long)m * m * n / 2 / time1 / 1e9
               << " TFLOPS" << std::endl;
     std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB"
               << std::endl;
