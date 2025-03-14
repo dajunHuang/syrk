@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
 
     long m = 16384, n = 16384;
 
-    if (argc >= 5) {
+    if (argc >= 3) {
         m = atoi(argv[1]);
         n = atoi(argv[2]);
     }
