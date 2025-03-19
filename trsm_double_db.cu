@@ -12,8 +12,8 @@
 
 // A * X = alpha * B
 // A is m * m col major Lower triangular, B is m * n col major, overwrited by X
-void trsm(cublasHandle_t cublasH1, cublasHandle_t cublasH2, long m, long n, double alpha, double *A, long lda,
-          double *B, long ldb, long b, long nb) {
+void trsm(cublasHandle_t cublasH1, cublasHandle_t cublasH2, long m, long n,
+          double alpha, double *A, long lda, double *B, long ldb, long b, long nb) {
     double sonedouble = 1.0, snegonedobule = -1.0;
     long num_nb = (m + nb - 1) / nb;
     for (long i = 0; i < num_nb; i++) {
@@ -25,38 +25,50 @@ void trsm(cublasHandle_t cublasH1, cublasHandle_t cublasH2, long m, long n, doub
             long this_b = min(b, this_nb - j * b);
             // printf("b%d, this_b: %d, row: %d, col: %d\n", j, this_b, i * nb + j * b,
             //        i * nb + j * b);
-            CUBLAS_CHECK(cublasDtrsm(cublasH1, CUBLAS_SIDE_LEFT,
+            if (j > 0) {
+                cublasDgemm(
+                    cublasH1, CUBLAS_OP_N, CUBLAS_OP_N, this_b, n, b, &snegonedobule,
+                    A + i * nb + j * b + (i * nb + (j - 1) * b) * lda, lda,
+                    B + i * nb + (j - 1) * b, ldb, &sonedouble, B + i * nb + j * b,
+                    ldb);
+            }
+            // CUDA_CHECK(cudaDeviceSynchronize());
+            cublasDtrsm(cublasH1, CUBLAS_SIDE_LEFT,
                                      CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N,
                                      CUBLAS_DIAG_NON_UNIT, this_b, n, &sonedouble,
                                      A + i * nb + j * b + (i * nb + j * b) * lda,
-                                     lda, B + i * nb + j * b, ldb));
+                                     lda, B + i * nb + j * b, ldb);
             // printf("trsm: m: %d, n: %d, A[%d, %d], B[%d, %d]\n", this_b, n,
             //        i * nb + j * b, i * nb + j * b, i * nb + j * b, 0);
-            CUBLAS_CHECK(
-                cublasDgemm(cublasH1, CUBLAS_OP_N, CUBLAS_OP_N,
-                            this_nb - (j * b + this_b), n, this_b, &snegonedobule,
-                            A + i * nb + j * b + this_b + (i * nb + j * b) * lda,
-                            lda, B + i * nb + j * b, ldb, &sonedouble,
-                            B + i * nb + j * b + this_b, ldb));
+            // CUDA_CHECK(cudaDeviceSynchronize());
+            if (j < num_b_this_nb - 1 && j > 0) {
+                cublasDgemm(
+                    cublasH2, CUBLAS_OP_N, CUBLAS_OP_N, this_nb - (j + 1) * b,
+                    n, b, &snegonedobule,
+                    A + i * nb + (j + 1) * b + (i * nb + (j - 1) * b) * lda, lda,
+                    B + i * nb + (j - 1) * b, ldb, &sonedouble,
+                    B + i * nb + (j + 1) * b, ldb);
+            }
             // printf("gemm0: m: %d, n: %d, k: %d, A[%d, %d], X[%d, %d], B[%d, %d]\n",
             //        this_nb - (j * b + this_b), n, this_b, i * nb + j * b + this_b,
             //        i * nb + j * b, i * nb + j * b, 0, i * nb + j * b + this_b, 0);
+            cudaDeviceSynchronize();
         }
-        CUBLAS_CHECK(cublasDgemm(
+        cublasDgemm(
             cublasH1, CUBLAS_OP_N, CUBLAS_OP_N, m - (i * nb + this_nb), n, this_nb,
             &snegonedobule, A + i * nb + this_nb + (i * nb) * lda, lda, B + i * nb,
-            ldb, &sonedouble, B + i * nb + this_nb, ldb));
-        // printf("gemm1: m: %d, n: %d, k: %d, A[%d, %d], X[%d, %d], B[%d, %d]\n",
-        //        m - (i * nb + this_nb), n, this_nb, i * nb + this_nb, i * nb, i * nb,
-        //        0, i * nb + this_nb, 0);
+            ldb, &sonedouble, B + i * nb + this_nb, ldb);
+            // printf("gemm1: m: %d, n: %d, k: %d, A[%d, %d], X[%d, %d], B[%d, %d]\n",
+            //        m - (i * nb + this_nb), n, this_nb, i * nb + this_nb, i * nb, i * nb,
+            //        0, i * nb + this_nb, 0);
+            // CUDA_CHECK(cudaDeviceSynchronize());
     }
 }
 
 int main(int argc, char *argv[]) {
-    
-    long m = 32, n = 32, b = 8, nb = 16;
-    int check = 0;
-    
+    long m = 48, n = 16, b = 16, nb = 48;
+    int check = 1;
+
     if (argc >= 6) {
         m = atoi(argv[1]);
         n = atoi(argv[2]);
@@ -64,21 +76,23 @@ int main(int argc, char *argv[]) {
         nb = atoi(argv[4]);
         check = atoi(argv[5]);
     }
-    
+
     assert(nb % b == 0);
-    
+
     long lda = m, ldb = m;
-    
+
     double *d_A = nullptr;
     double *d_B = nullptr;
     double *d_B_custom = nullptr;
-    
+
     double one = 1, zero = 0;
-    
+
     cublasHandle_t cublasH1, cublasH2;
     cudaStream_t stream1, stream2;
-    CUDA_CHECK(cudaStreamCreateWithFlags(&stream1, cudaStreamNonBlocking));
-    CUDA_CHECK(cudaStreamCreateWithFlags(&stream2, cudaStreamNonBlocking));
+    // CUDA_CHECK(cudaStreamCreateWithFlags(&stream1, cudaStreamNonBlocking));
+    // CUDA_CHECK(cudaStreamCreateWithFlags(&stream2, cudaStreamNonBlocking));
+    CUDA_CHECK(cudaStreamCreate(&stream1));
+    CUDA_CHECK(cudaStreamCreate(&stream2));
     CUBLAS_CHECK(cublasCreate(&cublasH1));
     CUBLAS_CHECK(cublasCreate(&cublasH2));
     CUBLAS_CHECK(cublasSetStream(cublasH1, stream1));
@@ -137,8 +151,9 @@ int main(int argc, char *argv[]) {
                     CUBLAS_DIAG_NON_UNIT, m, n, &one, d_A, lda, d_B_cublas, ldb);
         CUDA_CHECK(cudaDeviceSynchronize());
         double sonedouble = 1.0, snegonedobule = -1.0;
-        cublasDgeam(cublasH1, CUBLAS_OP_N, CUBLAS_OP_N, m, n, &sonedouble, d_B_custom,
-                    ldb, &snegonedobule, d_B_cublas, ldb, d_B_custom, ldb);
+        cublasDgeam(cublasH1, CUBLAS_OP_N, CUBLAS_OP_N, m, n, &sonedouble,
+                    d_B_custom, ldb, &snegonedobule, d_B_cublas, ldb, d_B_custom,
+                    ldb);
         double norm_custom = snorm(m, n, d_B_custom, ldb),
                norm_cublas = snorm(m, n, d_B_cublas, ldb);
         printf("norm_custom: %.6e, norm_cublas: %.6e, forward error: %.6e\n",
