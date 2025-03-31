@@ -109,7 +109,7 @@ __global__ void checkValue(long m, long n, T *A, long lda, T *B, long ldb,
         double const diff{A_val - B_val};
         double const diff_val{std::abs(diff)};
         if (isnan(diff_val) || diff_val > static_cast<double>(tol)) {
-            printf("A[%d, %d] = %f, B[%d, %d] = %f\n", i, j, A_val, i, j, B_val);
+            printf("A[%ld, %ld] = %f, B[%ld, %ld] = %f\n", i, j, A_val, i, j, B_val);
         }
     }
 }
@@ -125,7 +125,7 @@ __global__ void checkValueLower(long m, long n, T *A, long lda, T *B, long ldb,
         double const diff{A_val - B_val};
         double const diff_val{std::abs(diff)};
         if (isnan(diff_val) || diff_val > static_cast<double>(tol)) {
-            printf("A[%d, %d] = %f, B[%d, %d] = %f\n", i, j, A_val, i, j, B_val);
+            printf("A[%ld, %ld] = %f, B[%ld, %ld] = %f\n", i, j, A_val, i, j, B_val);
         }
     }
 }
