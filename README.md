@@ -7,7 +7,7 @@ make
 ./trsm_double [M] [N] [nb] [check]
 ```
 `nb`: sub-matrix size used in the algorithm, 1-N for syrk and syr2k, 1-M for trmm and trsm  
-`check`: whether to check the result, 0 for no, 1 for yes, may be very slow
+`check`: whether to check the result, 0 for no, 1 for yes
 
 syrk: C = alpha * A * A^T + beta * C, A is n * k col major, C is n * n col major  
 syr2k: C = alpha * A * B^T + alpha * B * A^T + beta * C, A is n * k col major, B is n * k col major, C is n * n col major  
