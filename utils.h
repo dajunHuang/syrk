@@ -168,23 +168,28 @@ __global__ void frobenius_norm_kernelDouble(int64_t m, int64_t n, T *A, int64_t 
 }
 
 template <typename T>
-T snorm(long m, long n, T *d_A, long lda) {
-    const long BLOCK_SIZE = 16;
-    dim3 blockDim(BLOCK_SIZE, BLOCK_SIZE);
-    dim3 gridDim((m + BLOCK_SIZE - 1) / BLOCK_SIZE,
-                 (n + BLOCK_SIZE - 1) / BLOCK_SIZE);
+T nrm2(cublasHandle_t cublasH, long m, long n, T *d_A, long lda);
+template <>
+float nrm2(cublasHandle_t cublasH, long m, long n, float *d_A, long lda) {
+    float norm = 0;
 
-    T *d_norm;
-    cudaMalloc(&d_norm, sizeof(T));
-    cudaMemset(d_norm, 0, sizeof(T));
+    if(lda != m) {
+        printf("lda must be equal to m");
+    }
 
-    frobenius_norm_kernelDouble<<<gridDim, blockDim>>>(m, n, d_A, lda, d_norm);
+    CUBLAS_CHECK(cublasSnrm2(cublasH, m * n, d_A, 1, &norm));
 
-    T norm;
-    cudaMemcpy(&norm, d_norm, sizeof(T), cudaMemcpyDeviceToHost);
-    norm = sqrtf(norm);
+    return norm;
+}
+template <>
+double nrm2(cublasHandle_t cublasH, long m, long n, double *d_A, long lda) {
+    double norm = 0;
 
-    cudaFree(d_norm);
+    if(lda != m) {
+        printf("lda must be equal to m");
+    }
+
+    CUBLAS_CHECK(cublasDnrm2(cublasH, m * n, d_A, 1, &norm));
 
     return norm;
 }

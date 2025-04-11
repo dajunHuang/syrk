@@ -115,8 +115,8 @@ int main(int argc, char *argv[]) {
         double sonedouble = 1.0, snegonedobule = -1.0;
         cublasDgeam(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, n, n, &sonedouble, d_C, ldc,
                     &snegonedobule, d_C_cublas, ldc, d_C, ldc);
-        double norm_custom = snorm(n, n, d_C, ldc),
-               norm_cublas = snorm(n, n, d_C_cublas, ldc);
+        double norm_custom = nrm2(cublasH, n, n, d_C, ldc),
+               norm_cublas = nrm2(cublasH, n, n, d_C_cublas, ldc);
         printf("norm_custom: %.6e, norm_cublas: %.6e, forward error: %.6e\n",
                norm_custom, norm_cublas, norm_custom / norm_cublas);
         CUDA_CHECK(cudaFree(d_C_cublas));
