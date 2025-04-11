@@ -76,8 +76,13 @@ int main(int argc, char *argv[]) {
     CUDA_CHECK(
         cudaMalloc(reinterpret_cast<void **>(&d_C), sizeof(double) * ldc * n));
 
+    dim3 grida((m + 15) / 16, (m + 15) / 16);
+    dim3 blocka(16, 16);
+
     generateUniformMatrixDouble(d_A, lda, m);
     generateUniformMatrixDouble(d_B, ldb, n);
+
+    setInitialValueUpper<double><<<grida, blocka>>>(m, m, d_A, lda, 0);
 
     cudaEvent_t start, stop;
     float time1 = 0, temp_time = 0;
