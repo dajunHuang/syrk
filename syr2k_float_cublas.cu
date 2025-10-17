@@ -17,6 +17,7 @@
 
 int main(int argc, char *argv[]) {
     cublasHandle_t cublasH = NULL;
+    cudaStream_t stream = NULL;
 
     long n = 16384, k = 16384;
 
@@ -34,6 +35,8 @@ int main(int argc, char *argv[]) {
     float one = 1, zero = 0;
 
     CUBLAS_CHECK(cublasCreate(&cublasH));
+    CUDA_CHECK(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
+    CUBLAS_CHECK(cublasSetStream(cublasH, stream));
 
     CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_A), sizeof(float) * lda * k));
     CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_B), sizeof(float) * lda * k));
@@ -41,6 +44,7 @@ int main(int argc, char *argv[]) {
 
     generateUniformMatrixFloat(d_A, lda, k);
     generateUniformMatrixFloat(d_B, ldb, k);
+    CUDA_CHECK(cudaDeviceSynchronize());
 
     cudaEvent_t start, stop;
     float time1 = 0, temp_time = 0;
@@ -51,22 +55,26 @@ int main(int argc, char *argv[]) {
         cublasSsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one,
             d_A, lda, d_B, ldb, &zero, d_C, ldc);
     }
-    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaStreamSynchronize(stream));
     for (int i{0}; i < NUM_REPEAT; ++i) {
-        CUDA_CHECK(cudaEventRecord(start));
+        PUSH_RANGE("syr2k_float_cublas", i);
+        CUDA_CHECK(cudaStreamSynchronize(stream));
+        CUDA_CHECK(cudaEventRecord(start, stream));
 
         cublasSsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one,
             d_A, lda, d_B, ldb, &zero, d_C, ldc);
 
-        CUDA_CHECK(cudaEventRecord(stop));
+        CUDA_CHECK(cudaStreamSynchronize(stream));
+        CUDA_CHECK(cudaEventRecord(stop, stream));
         CUDA_CHECK(cudaEventSynchronize(stop));
+        POP_RANGE;
         CUDA_CHECK_LAST_ERROR();
         CUDA_CHECK(cudaEventElapsedTime(&temp_time, start, stop));
         time1 += temp_time;
     }
     time1 /= NUM_REPEAT;
 
-    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaStreamSynchronize(stream));
 
     std::cout << "[cublas ssyr2k] " << "m: " << n << ", n: " << k << ", "
               << "latency: " << time1 << " ms, "
@@ -80,6 +88,7 @@ int main(int argc, char *argv[]) {
     CUDA_CHECK(cudaFree(d_C));
 
     CUBLAS_CHECK(cublasDestroy(cublasH));
+    CUDA_CHECK(cudaStreamDestroy(stream));
     CUDA_CHECK(cudaDeviceReset());
 
     return EXIT_SUCCESS;

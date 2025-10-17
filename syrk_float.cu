@@ -50,6 +50,7 @@ void syrk(cublasHandle_t cublasH, long n, long k, float alpha, float *A, long ld
 
 int main(int argc, char *argv[]) {
     cublasHandle_t cublasH = NULL;
+    cudaStream_t stream = NULL;
 
     long n = 16384, k = 16384, nb = 512;
     int check = 0;
@@ -69,12 +70,15 @@ int main(int argc, char *argv[]) {
     float one = 1, zero = 0;
 
     CUBLAS_CHECK(cublasCreate(&cublasH));
+    CUDA_CHECK(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
+    CUBLAS_CHECK(cublasSetStream(cublasH, stream));
 
     /* step 2: copy A to device */
     CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_A), sizeof(float) * lda * k));
     CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_C), sizeof(float) * ldc * n));
 
     generateUniformMatrixFloat(d_A, lda, k);
+    CUDA_CHECK(cudaDeviceSynchronize());
 
     cudaEvent_t start, stop;
     float time1 = 0, temp_time = 0;
@@ -84,21 +88,25 @@ int main(int argc, char *argv[]) {
     for (int i{0}; i < NUM_WARPUP; ++i) {
         syrk(cublasH, n, k, one, d_A, lda, zero, d_C, ldc, nb);
     }
-    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaStreamSynchronize(stream));
     for (int i{0}; i < NUM_REPEAT; ++i) {
-        CUDA_CHECK(cudaEventRecord(start));
+        PUSH_RANGE("syrk_float", i);
+        CUDA_CHECK(cudaStreamSynchronize(stream));
+        CUDA_CHECK(cudaEventRecord(start, stream));
 
         syrk(cublasH, n, k, one, d_A, lda, zero, d_C, ldc, nb);
 
-        CUDA_CHECK(cudaEventRecord(stop));
+        CUDA_CHECK(cudaStreamSynchronize(stream));
+        CUDA_CHECK(cudaEventRecord(stop, stream));
         CUDA_CHECK(cudaEventSynchronize(stop));
+        POP_RANGE;
         CUDA_CHECK_LAST_ERROR();
         CUDA_CHECK(cudaEventElapsedTime(&temp_time, start, stop));
         time1 += temp_time;
     }
     time1 /= NUM_REPEAT;
 
-    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaStreamSynchronize(stream));
 
     if (check) {
         float *d_C_cublas = nullptr;
@@ -106,10 +114,10 @@ int main(int argc, char *argv[]) {
                               sizeof(float) * ldc * n));
         cublasSsyrk(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one, d_A,
                     lda, &zero, d_C_cublas, ldc);
-        CUDA_CHECK(cudaDeviceSynchronize());
+        CUDA_CHECK(cudaStreamSynchronize(stream));
         copy_lower_to_upper(n, d_C, ldc);
         copy_lower_to_upper(n, d_C_cublas, ldc);
-        CUDA_CHECK(cudaDeviceSynchronize());
+        CUDA_CHECK(cudaStreamSynchronize(stream));
         float sonedouble = 1.0, snegonedobule = -1.0;
         cublasSgeam(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, n, n, &sonedouble, d_C, ldc,
                     &snegonedobule, d_C_cublas, ldc, d_C, ldc);
@@ -131,6 +139,7 @@ int main(int argc, char *argv[]) {
     CUDA_CHECK(cudaFree(d_C));
 
     CUBLAS_CHECK(cublasDestroy(cublasH));
+    CUDA_CHECK(cudaStreamDestroy(stream));
     CUDA_CHECK(cudaDeviceReset());
 
     return EXIT_SUCCESS;

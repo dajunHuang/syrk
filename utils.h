@@ -7,13 +7,33 @@
 #include <cusolverDn.h>
 #include <library_types.h>
 #include <math.h>
+#include <nvtx3/nvToolsExt.h>
 
+#include <array>  // For std::array
 #include <cmath>
+#include <cstdint>  // For uint32_t
 #include <functional>
 #include <iostream>
 #include <random>
 #include <stdexcept>
 #include <string>
+
+// C++ style array container
+const std::array<uint32_t, 7> colors = {0x0000ff00, 0x000000ff, 0x00ffff00, 0x00ff00ff,
+                                        0x0000ffff, 0x00ff0000, 0x00ffffff};
+
+#define PUSH_RANGE(name, cid)                              \
+    do {                                                   \
+        nvtxEventAttributes_t eventAttrib = {};            \
+        eventAttrib.version = NVTX_VERSION;                \
+        eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;  \
+        eventAttrib.colorType = NVTX_COLOR_ARGB;           \
+        eventAttrib.color = colors[(cid) % colors.size()]; \
+        eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII; \
+        eventAttrib.message.ascii = name;                  \
+        nvtxRangePushEx(&eventAttrib);                     \
+    } while (0)
+#define POP_RANGE nvtxRangePop()
 
 // CUDA API error checking
 #define CUDA_CHECK(err)                                                   \
@@ -72,7 +92,7 @@
 static const size_t device_alignment = 32;
 
 template <typename T>
-__global__ void setInitialValue(long m, long n, T *a, long lda, T val) {
+__global__ void setInitialValue(long m, long n, T* a, long lda, T val) {
     long i = threadIdx.x + blockDim.x * blockIdx.x;
     long j = threadIdx.y + blockDim.y * blockIdx.y;
     if (i < m && j < n) {
@@ -81,7 +101,7 @@ __global__ void setInitialValue(long m, long n, T *a, long lda, T val) {
 }
 
 template <typename T>
-__global__ void setInitialValueUpper(long m, long n, T *a, long lda, T val) {
+__global__ void setInitialValueUpper(long m, long n, T* a, long lda, T val) {
     long i = threadIdx.x + blockDim.x * blockIdx.x;
     long j = threadIdx.y + blockDim.y * blockIdx.y;
     if (i < j && i < m && j < n) {
@@ -90,7 +110,7 @@ __global__ void setInitialValueUpper(long m, long n, T *a, long lda, T val) {
 }
 
 template <typename T>
-__global__ void setInitialValueLower(long m, long n, T *a, long lda, T val) {
+__global__ void setInitialValueLower(long m, long n, T* a, long lda, T val) {
     long i = threadIdx.x + blockDim.x * blockIdx.x;
     long j = threadIdx.y + blockDim.y * blockIdx.y;
     if (i > j && i < m && j < n) {
@@ -99,8 +119,7 @@ __global__ void setInitialValueLower(long m, long n, T *a, long lda, T val) {
 }
 
 template <typename T>
-__global__ void checkValue(long m, long n, T *A, long lda, T *B, long ldb,
-                           double tol) {
+__global__ void checkValue(long m, long n, T* A, long lda, T* B, long ldb, double tol) {
     long i = threadIdx.x + blockDim.x * blockIdx.x;
     long j = threadIdx.y + blockDim.y * blockIdx.y;
     if (i < m && j < n) {
@@ -115,8 +134,7 @@ __global__ void checkValue(long m, long n, T *A, long lda, T *B, long ldb,
 }
 
 template <typename T>
-__global__ void checkValueLower(long m, long n, T *A, long lda, T *B, long ldb,
-                                double tol) {
+__global__ void checkValueLower(long m, long n, T* A, long lda, T* B, long ldb, double tol) {
     long i = threadIdx.x + blockDim.x * blockIdx.x;
     long j = threadIdx.y + blockDim.y * blockIdx.y;
     if (i > j && i < m && j < n) {
@@ -130,7 +148,7 @@ __global__ void checkValueLower(long m, long n, T *A, long lda, T *B, long ldb,
     }
 }
 
-void generateUniformMatrixDouble(double *dA, long m, long n) {
+void generateUniformMatrixDouble(double* dA, long m, long n) {
     curandGenerator_t gen;
     curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
     int seed = 3000;
@@ -138,7 +156,7 @@ void generateUniformMatrixDouble(double *dA, long m, long n) {
     curandGenerateUniformDouble(gen, dA, long(m * n));
 }
 
-void generateUniformMatrixFloat(float *dA, long m, long n) {
+void generateUniformMatrixFloat(float* dA, long m, long n) {
     curandGenerator_t gen;
     curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
     int seed = 3000;
@@ -153,8 +171,7 @@ size_t free_mem() {
 }
 
 template <typename T>
-__global__ void frobenius_norm_kernelDouble(int64_t m, int64_t n, T *A, int64_t lda,
-                                            T *norm) {
+__global__ void frobenius_norm_kernelDouble(int64_t m, int64_t n, T* A, int64_t lda, T* norm) {
     int64_t idx_x = threadIdx.x + blockDim.x * blockIdx.x;
     int64_t idx_y = threadIdx.y + blockDim.y * blockIdx.y;
 
@@ -168,12 +185,12 @@ __global__ void frobenius_norm_kernelDouble(int64_t m, int64_t n, T *A, int64_t 
 }
 
 template <typename T>
-T nrm2(cublasHandle_t cublasH, long m, long n, T *d_A, long lda);
+T nrm2(cublasHandle_t cublasH, long m, long n, T* d_A, long lda);
 template <>
-float nrm2(cublasHandle_t cublasH, long m, long n, float *d_A, long lda) {
+float nrm2(cublasHandle_t cublasH, long m, long n, float* d_A, long lda) {
     float norm = 0;
 
-    if(lda != m) {
+    if (lda != m) {
         printf("lda must be equal to m");
     }
 
@@ -182,10 +199,10 @@ float nrm2(cublasHandle_t cublasH, long m, long n, float *d_A, long lda) {
     return norm;
 }
 template <>
-double nrm2(cublasHandle_t cublasH, long m, long n, double *d_A, long lda) {
+double nrm2(cublasHandle_t cublasH, long m, long n, double* d_A, long lda) {
     double norm = 0;
 
-    if(lda != m) {
+    if (lda != m) {
         printf("lda must be equal to m");
     }
 
@@ -195,7 +212,7 @@ double nrm2(cublasHandle_t cublasH, long m, long n, double *d_A, long lda) {
 }
 
 template <typename T>
-__global__ void copy_lower_to_upper_kernel(long n, T *A, long lda) {
+__global__ void copy_lower_to_upper_kernel(long n, T* A, long lda) {
     long i = threadIdx.x + blockDim.x * blockIdx.x;
     long j = threadIdx.y + blockDim.y * blockIdx.y;
     if (i < n && j < n) {
@@ -204,16 +221,15 @@ __global__ void copy_lower_to_upper_kernel(long n, T *A, long lda) {
 }
 
 template <typename T>
-void copy_lower_to_upper(long n, T *A, long lda) {
+void copy_lower_to_upper(long n, T* A, long lda) {
     const long BLOCK_SIZE = 16;
     dim3 blockDim(BLOCK_SIZE, BLOCK_SIZE);
-    dim3 gridDim((n + BLOCK_SIZE - 1) / BLOCK_SIZE,
-                 (n + BLOCK_SIZE - 1) / BLOCK_SIZE);
+    dim3 gridDim((n + BLOCK_SIZE - 1) / BLOCK_SIZE, (n + BLOCK_SIZE - 1) / BLOCK_SIZE);
     copy_lower_to_upper_kernel<<<gridDim, blockDim>>>(n, A, lda);
 }
 
 template <typename T>
-void print_device_matrix(T *dA, long ldA, long rows, long cols) {
+void print_device_matrix(T* dA, long ldA, long rows, long cols) {
     T matrix;
 
     for (long i = 0; i < rows; i++) {
