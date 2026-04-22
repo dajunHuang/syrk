@@ -1,29 +1,21 @@
 #!/bin/bash
 
-programs=("syr2k_double" "syr2k_float" "syrk_double" "syrk_float" "trmm_double" "trmm_float" "trsm_double" "trsm_float")
-# programs=("syrk_double")
+programs=("syr2k_double" "syr2k_float" "syrk_double" "syrk_float" "trmm_double" "trmm_float")
 
-# ms0=(8192 16384 24576 40960 49152 57344)
-# ns0=(8192 16384 24576 40960 49152 57344)
-# ms1=(57344 57344 57344 57344 57344)
-# ns1=(8192 16384 24576 40960 49152)
-# ms2=(8192 16384 24576 40960 49152)
-# ns2=(57344 57344 57344 57344 57344)
-
-ms0=(1024 2048 4096 8192 16384 24576)
-ns0=(1024 2048 4096 8192 16384 24576)
-ms1=(24576 24576 24576 24576 24576)
-ns1=(1024 2048 4096 8192 16384)
-ms2=(1024 2048 4096 8192 16384)
-ns2=(24576 24576 24576 24576 24576)
+ms0=(  128   256   512  1024  2048  4096  8192 16384 24576 32768 40960)
+ns0=(  128   256   512  1024  2048  4096  8192 16384 24576 32768 40960)
+# ms1=(40960 40960 40960 40960 40960 40960 40960 40960 40960)
+# ns1=(  128   256   512  1024  2048  4096  8192 16384 24576)
+# ms2=(  128   256   512  1024  2048  4096  8192 16384 24576)
+# ns2=(40960 40960 40960 40960 40960 40960 40960 40960 40960)
 
 nb_values=(128 256 512 1024 2048 4096)
 
-mkdir -p result
+mkdir -p result/h100
 
 for prog in "${programs[@]}"; do
 
-  output_file="result/${prog}_result.csv"
+  output_file="result/h100/${prog}_result.csv"
   echo "m,n,custom_latency,custom_TFLOPS,nb_used,cublas_latency,cublas_TFLOPS" > "$output_file"
   # mn0
   for index in "${!ms0[@]}"; do
