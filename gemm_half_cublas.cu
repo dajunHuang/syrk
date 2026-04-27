@@ -40,8 +40,8 @@
 
 #define CUDA_CHECK_LAST_ERROR() CUDA_CHECK(cudaGetLastError())
 
-#define NUM_WARPUP 5
-#define NUM_REPEAT 20
+#define NUM_WARPUP 2
+#define NUM_REPEAT 10
 
 // --- 新增部分：用于将 float 转换为 half 的 CUDA Kernel ---
 __global__ void floatToHalfKernel(const float *in, __half *out, size_t n) {

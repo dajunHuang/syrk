@@ -40,7 +40,7 @@
 #define CUDA_CHECK_LAST_ERROR() CUDA_CHECK(cudaGetLastError())
 
 #define NUM_WARMUP 5
-#define NUM_REPEAT 20
+#define NUM_REPEAT 10
 
 // --- 使用 cuRAND 在 GPU 上直接生成 float 随机矩阵 ---
 void generateUniformMatrixFloat(curandGenerator_t &gen, float *d_mat, int rows, int cols) {

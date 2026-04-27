@@ -12,8 +12,8 @@
 
 #include "utils.h"
 
-#define NUM_WARPUP 5
-#define NUM_REPEAT 20
+#define NUM_WARPUP 2
+#define NUM_REPEAT 10
 
 int main(int argc, char *argv[]) {
     cublasHandle_t cublasH = NULL;

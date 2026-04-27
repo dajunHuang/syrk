@@ -24,28 +24,32 @@ int main(int argc, char *argv[]) {
         k = atoi(argv[3]);
     }
 
-    float *d_A = nullptr;
-    float *d_B = nullptr;
-    float *d_C = nullptr;
+    double *d_A = nullptr;
+    double *d_B = nullptr;
+    double *d_C = nullptr;
 
-    float one = 1, zero = 0;
+    double one = 1, zero = 0;
 
     CUBLAS_CHECK(cublasCreate(&cublasH));
     CUDA_CHECK(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
     CUBLAS_CHECK(cublasSetStream(cublasH, stream));
+    CUBLAS_CHECK(cublasSetEmulationStrategy(cublasH, CUBLAS_EMULATION_STRATEGY_EAGER)); // CUBLAS_EMULATION_STRATEGY_EAGER CUBLAS_EMULATION_STRATEGY_DEFAULT CUBLAS_EMULATION_STRATEGY_PERFORMANT
+    CUBLAS_CHECK(cublasSetEmulationSpecialValuesSupport(cublasH, CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_DEFAULT)); // CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_DEFAULT CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_NONE CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_INFINITY CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_NAN
+    CUBLAS_CHECK(cublasSetMathMode(cublasH, CUBLAS_FP64_EMULATED_FIXEDPOINT_MATH));
+    CUBLAS_CHECK(cublasSetFixedPointEmulationMantissaControl(cublasH, CUDA_EMULATION_MANTISSA_CONTROL_DYNAMIC)); // CUDA_EMULATION_MANTISSA_CONTROL_DYNAMIC CUDA_EMULATION_MANTISSA_CONTROL_FIXED
 
     int lda = m, ldb = k, ldc = m;
 
     /* step 2: copy A to device */
     CUDA_CHECK(
-        cudaMalloc(reinterpret_cast<void **>(&d_A), sizeof(float) * lda * k));
+        cudaMalloc(reinterpret_cast<void **>(&d_A), sizeof(double) * lda * k));
     CUDA_CHECK(
-        cudaMalloc(reinterpret_cast<void **>(&d_B), sizeof(float) * ldb * n));
+        cudaMalloc(reinterpret_cast<void **>(&d_B), sizeof(double) * ldb * n));
     CUDA_CHECK(
-        cudaMalloc(reinterpret_cast<void **>(&d_C), sizeof(float) * ldc * n));
+        cudaMalloc(reinterpret_cast<void **>(&d_C), sizeof(double) * ldc * n));
 
-    generateUniformMatrixFloat(d_A, lda, k);
-    generateUniformMatrixFloat(d_B, ldb, n);
+    generateUniformMatrixDouble(d_A, lda, k);
+    generateUniformMatrixDouble(d_B, ldb, n);
     CUDA_CHECK(cudaDeviceSynchronize());
 
     cudaEvent_t start, stop;
@@ -54,7 +58,7 @@ int main(int argc, char *argv[]) {
     CUDA_CHECK(cudaEventCreate(&start));
     CUDA_CHECK(cudaEventCreate(&stop));
     for (int i{0}; i < NUM_WARPUP; ++i) {
-        CUBLAS_CHECK(cublasSgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k,
+        CUBLAS_CHECK(cublasDgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k,
                                  &one, d_A, lda, d_B, ldb, &zero, d_C,
                                  ldc));  // CUBLAS_GEMM_ALGO0_TENSOR_OP
     }
@@ -63,7 +67,7 @@ int main(int argc, char *argv[]) {
         CUDA_CHECK(cudaStreamSynchronize(stream));
         CUDA_CHECK(cudaEventRecord(start, stream));
 
-        CUBLAS_CHECK(cublasSgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k,
+        CUBLAS_CHECK(cublasDgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k,
                                  &one, d_A, lda, d_B, ldb, &zero, d_C,
                                  ldc));  // CUBLAS_GEMM_ALGO0_TENSOR_OP
 
@@ -78,7 +82,7 @@ int main(int argc, char *argv[]) {
 
     CUDA_CHECK(cudaStreamSynchronize(stream));
 
-    std::cout << "[cublas sgemm] " << "m: " << m << ", n: " << n << ", k: " << k
+    std::cout << "[cublas dgemm] " << "m: " << m << ", n: " << n << ", k: " << k
               << ", "
               << "latency: " << time << " ms, "
               << "Effective TFLOPS: " << 2.0 * m * n * k / time / 1e9

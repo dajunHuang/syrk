@@ -10,8 +10,8 @@
 
 #include "utils.h"
 
-#define NUM_WARPUP 5
-#define NUM_REPEAT 20
+#define NUM_WARPUP 2
+#define NUM_REPEAT 10
 
 // C = alpha * A * B + beta * C
 // A is m * m col major Lower triangular, B is m * n col major, C is m * n col major
