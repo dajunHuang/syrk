@@ -22,17 +22,33 @@ int main(int argc, char* argv[]) {
 
     long lda = m, ldb = m;
 
-    float* d_A = nullptr;
-    float* d_B = nullptr;
-    float* d_B_custom = nullptr;
+    double* d_A = nullptr;
+    double* d_B = nullptr;
+    double* d_B_custom = nullptr;
 
-    float one = 1, zero = 0;
+    double one = 1, zero = 0;
 
     CUBLAS_CHECK(cublasCreate(&cublasH));
+    CUBLAS_CHECK(cublasSetEmulationStrategy(
+        cublasH, CUBLAS_EMULATION_STRATEGY_EAGER));  // CUBLAS_EMULATION_STRATEGY_EAGER
+                                                     // CUBLAS_EMULATION_STRATEGY_DEFAULT
+                                                     // CUBLAS_EMULATION_STRATEGY_PERFORMANT
+    CUBLAS_CHECK(cublasSetEmulationSpecialValuesSupport(
+        cublasH,
+        CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_DEFAULT));  // CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_DEFAULT
+                                                          // CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_NONE
+                                                          // CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_INFINITY
+                                                          // CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_NAN
+    CUBLAS_CHECK(cublasSetMathMode(cublasH, CUBLAS_FP64_EMULATED_FIXEDPOINT_MATH));
+    CUBLAS_CHECK(cublasSetFixedPointEmulationMantissaControl(
+        cublasH,
+        CUDA_EMULATION_MANTISSA_CONTROL_DYNAMIC));  // CUDA_EMULATION_MANTISSA_CONTROL_DYNAMIC
+                                                    // CUDA_EMULATION_MANTISSA_CONTROL_FIXED
 
-    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_A), sizeof(float) * lda * m));
-    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_B), sizeof(float) * lda * n));
-    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_B_custom), sizeof(float) * ldb * n));
+    /* step 2: copy A to device */
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_A), sizeof(double) * lda * m));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_B), sizeof(double) * lda * n));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_B_custom), sizeof(double) * ldb * n));
 
     dim3 grida((m + 15) / 16, (m + 15) / 16);
     dim3 gridb((m + 15) / 16, (n + 15) / 16);
@@ -41,9 +57,7 @@ int main(int argc, char* argv[]) {
     setInitialValue<<<grida, block>>>(m, m, d_A, lda, one);
     setInitialValueUpper<<<grida, block>>>(m, m, d_A, lda, zero);
 
-    generateUniformMatrixFloat(d_B, ldb, n);
-
-    CUDA_CHECK(cudaDeviceSynchronize());
+    generateUniformMatrixDouble(d_B, ldb, n);
 
     cudaEvent_t start, stop;
     float time1 = 0, temp_time = 0;
@@ -52,7 +66,7 @@ int main(int argc, char* argv[]) {
     CUDA_CHECK(cudaEventCreate(&start));
     CUDA_CHECK(cudaEventCreate(&stop));
 
-    cublasStrsm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N,
+    cublasDtrsm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N,
                 CUBLAS_DIAG_NON_UNIT, m, n, &one, d_A, lda, d_B_custom, ldb);
 
     CUDA_CHECK(cudaDeviceSynchronize());
@@ -61,7 +75,7 @@ int main(int argc, char* argv[]) {
     CUDA_CHECK(cudaDeviceSynchronize());
     CUDA_CHECK(cudaEventRecord(start));
 
-    cublasStrsm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N,
+    cublasDtrsm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N,
                 CUBLAS_DIAG_NON_UNIT, m, n, &one, d_A, lda, d_B_custom, ldb);
 
     CUDA_CHECK(cudaEventRecord(stop));
@@ -72,7 +86,7 @@ int main(int argc, char* argv[]) {
 
     CUDA_CHECK(cudaDeviceSynchronize());
 
-    std::cout << "[cublas strsm] " << "m: " << m << ", n: " << n << ", "
+    std::cout << "[cublas dtrsm] " << "m: " << m << ", n: " << n << ", "
               << "latency: " << time1 << " ms, " << (long)m * m * n / 2 / time1 / 1e9 << " TFLOPS"
               << std::endl;
     std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB" << std::endl;

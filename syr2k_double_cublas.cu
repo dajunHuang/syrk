@@ -15,7 +15,7 @@
 #define NUM_WARPUP 2
 #define NUM_REPEAT 10
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     cublasHandle_t cublasH = NULL;
     cudaStream_t stream = NULL;
 
@@ -28,9 +28,9 @@ int main(int argc, char *argv[]) {
 
     long lda = n, ldb = n, ldc = n;
 
-    double *d_A = nullptr;
-    double *d_B = nullptr;
-    double *d_C = nullptr;
+    double* d_A = nullptr;
+    double* d_B = nullptr;
+    double* d_C = nullptr;
 
     double one = 1, zero = 0;
 
@@ -39,12 +39,9 @@ int main(int argc, char *argv[]) {
     CUBLAS_CHECK(cublasSetStream(cublasH, stream));
 
     /* step 2: copy A to device */
-    CUDA_CHECK(
-        cudaMalloc(reinterpret_cast<void **>(&d_A), sizeof(double) * lda * k));
-    CUDA_CHECK(
-        cudaMalloc(reinterpret_cast<void **>(&d_B), sizeof(double) * ldb * k));
-    CUDA_CHECK(
-        cudaMalloc(reinterpret_cast<void **>(&d_C), sizeof(double) * ldc * n));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_A), sizeof(double) * lda * k));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_B), sizeof(double) * ldb * k));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_C), sizeof(double) * ldc * n));
 
     generateUniformMatrixDouble(d_A, lda, k);
     generateUniformMatrixDouble(d_B, ldb, k);
@@ -56,8 +53,8 @@ int main(int argc, char *argv[]) {
     CUDA_CHECK(cudaEventCreate(&start));
     CUDA_CHECK(cudaEventCreate(&stop));
     for (int i{0}; i < NUM_WARPUP; ++i) {
-        cublasDsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one,
-                     d_A, lda, d_B, ldb, &zero, d_C, ldc);
+        cublasDsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one, d_A, lda, d_B, ldb,
+                     &zero, d_C, ldc);
     }
     CUDA_CHECK(cudaStreamSynchronize(stream));
     for (int i{0}; i < NUM_REPEAT; ++i) {
@@ -65,8 +62,8 @@ int main(int argc, char *argv[]) {
         CUDA_CHECK(cudaStreamSynchronize(stream));
         CUDA_CHECK(cudaEventRecord(start, stream));
 
-        cublasDsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one,
-                     d_A, lda, d_B, ldb, &zero, d_C, ldc);
+        cublasDsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one, d_A, lda, d_B, ldb,
+                     &zero, d_C, ldc);
 
         CUDA_CHECK(cudaStreamSynchronize(stream));
         CUDA_CHECK(cudaEventRecord(stop, stream));
@@ -81,10 +78,9 @@ int main(int argc, char *argv[]) {
     CUDA_CHECK(cudaStreamSynchronize(stream));
 
     std::cout << "[cublas dsyr2k] " << "m: " << n << ", n: " << k << ", "
-              << "latency: " << time1 << " ms, "
-              << 2 * (long)n * n * k / time1 / 1e9 << " TFLOPS" << std::endl;
-    std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB"
+              << "latency: " << time1 << " ms, " << 2 * (long)n * n * k / time1 / 1e9 << " TFLOPS"
               << std::endl;
+    std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB" << std::endl;
 
     /* free resources */
     CUDA_CHECK(cudaFree(d_A));

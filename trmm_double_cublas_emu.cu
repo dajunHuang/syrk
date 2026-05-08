@@ -26,27 +26,37 @@ int main(int argc, char* argv[]) {
 
     long lda = m, ldb = m, ldc = m;
 
-    float* d_A = nullptr;
-    float* d_B = nullptr;
-    float* d_C = nullptr;
+    double* d_A = nullptr;
+    double* d_B = nullptr;
+    double* d_C = nullptr;
 
-    float one = 1;
+    double one = 1;
 
     CUBLAS_CHECK(cublasCreate(&cublasH));
     CUDA_CHECK(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
     CUBLAS_CHECK(cublasSetStream(cublasH, stream));
+    CUBLAS_CHECK(cublasSetEmulationStrategy(
+        cublasH, CUBLAS_EMULATION_STRATEGY_EAGER));  // CUBLAS_EMULATION_STRATEGY_EAGER
+                                                     // CUBLAS_EMULATION_STRATEGY_DEFAULT
+                                                     // CUBLAS_EMULATION_STRATEGY_PERFORMANT
+    CUBLAS_CHECK(cublasSetEmulationSpecialValuesSupport(
+        cublasH,
+        CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_DEFAULT));  // CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_DEFAULT
+                                                          // CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_NONE
+                                                          // CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_INFINITY
+                                                          // CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_NAN
+    CUBLAS_CHECK(cublasSetMathMode(cublasH, CUBLAS_FP64_EMULATED_FIXEDPOINT_MATH));
+    CUBLAS_CHECK(cublasSetFixedPointEmulationMantissaControl(
+        cublasH,
+        CUDA_EMULATION_MANTISSA_CONTROL_DYNAMIC));  // CUDA_EMULATION_MANTISSA_CONTROL_DYNAMIC
+                                                    // CUDA_EMULATION_MANTISSA_CONTROL_FIXED
 
-    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_A), sizeof(float) * lda * m));
-    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_B), sizeof(float) * lda * n));
-    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_C), sizeof(float) * ldc * n));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_A), sizeof(double) * lda * m));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_B), sizeof(double) * lda * n));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_C), sizeof(double) * ldc * n));
 
-    dim3 grida((m + 15) / 16, (m + 15) / 16);
-    dim3 blocka(16, 16);
-
-    generateUniformMatrixFloat(d_A, lda, m);
-    generateUniformMatrixFloat(d_B, ldb, n);
-
-    setInitialValueUpper<float><<<grida, blocka>>>(m, m, d_A, lda, 0);
+    generateUniformMatrixDouble(d_A, lda, m);
+    generateUniformMatrixDouble(d_B, ldb, n);
     CUDA_CHECK(cudaDeviceSynchronize());
 
     cudaEvent_t start, stop;
@@ -55,16 +65,16 @@ int main(int argc, char* argv[]) {
     CUDA_CHECK(cudaEventCreate(&start));
     CUDA_CHECK(cudaEventCreate(&stop));
     for (int i{0}; i < NUM_WARPUP; ++i) {
-        cublasStrmm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N,
+        cublasDtrmm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N,
                     CUBLAS_DIAG_NON_UNIT, m, n, &one, d_A, lda, d_B, ldb, d_C, ldc);
     }
     CUDA_CHECK(cudaStreamSynchronize(stream));
     for (int i{0}; i < NUM_REPEAT; ++i) {
-        PUSH_RANGE("trmm_float_cublas", i);
+        PUSH_RANGE("trmm_double_cublas", i);
         CUDA_CHECK(cudaStreamSynchronize(stream));
         CUDA_CHECK(cudaEventRecord(start, stream));
 
-        cublasStrmm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N,
+        cublasDtrmm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N,
                     CUBLAS_DIAG_NON_UNIT, m, n, &one, d_A, lda, d_B, ldb, d_C, ldc);
 
         CUDA_CHECK(cudaStreamSynchronize(stream));
@@ -79,7 +89,7 @@ int main(int argc, char* argv[]) {
 
     CUDA_CHECK(cudaStreamSynchronize(stream));
 
-    std::cout << "[cublas strmm] " << "m: " << m << ", n: " << n << ", "
+    std::cout << "[cublas dtrmm] " << "m: " << m << ", n: " << n << ", "
               << "latency: " << time1 << " ms, " << (long)m * m * n / time1 / 1e9 << " TFLOPS"
               << std::endl;
     std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB" << std::endl;

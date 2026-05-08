@@ -13,7 +13,7 @@
 #define NUM_WARPUP 2
 #define NUM_REPEAT 10
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     cublasHandle_t cublasH = NULL;
     cudaStream_t stream = NULL;
 
@@ -26,9 +26,9 @@ int main(int argc, char *argv[]) {
 
     long lda = m, ldb = m, ldc = m;
 
-    double *d_A = nullptr;
-    double *d_B = nullptr;
-    double *d_C = nullptr;
+    double* d_A = nullptr;
+    double* d_B = nullptr;
+    double* d_C = nullptr;
 
     double one = 1;
 
@@ -36,12 +36,9 @@ int main(int argc, char *argv[]) {
     CUDA_CHECK(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
     CUBLAS_CHECK(cublasSetStream(cublasH, stream));
 
-    CUDA_CHECK(
-        cudaMalloc(reinterpret_cast<void **>(&d_A), sizeof(double) * lda * m));
-    CUDA_CHECK(
-        cudaMalloc(reinterpret_cast<void **>(&d_B), sizeof(double) * lda * n));
-    CUDA_CHECK(
-        cudaMalloc(reinterpret_cast<void **>(&d_C), sizeof(double) * ldc * n));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_A), sizeof(double) * lda * m));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_B), sizeof(double) * lda * n));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_C), sizeof(double) * ldc * n));
 
     generateUniformMatrixDouble(d_A, lda, m);
     generateUniformMatrixDouble(d_B, ldb, n);
@@ -78,10 +75,9 @@ int main(int argc, char *argv[]) {
     CUDA_CHECK(cudaStreamSynchronize(stream));
 
     std::cout << "[cublas dtrmm] " << "m: " << m << ", n: " << n << ", "
-              << "latency: " << time1 << " ms, " << (long)m * m * n / time1 / 1e9
-              << " TFLOPS" << std::endl;
-    std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB"
+              << "latency: " << time1 << " ms, " << (long)m * m * n / time1 / 1e9 << " TFLOPS"
               << std::endl;
+    std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB" << std::endl;
 
     /* free resources */
     CUDA_CHECK(cudaFree(d_A));

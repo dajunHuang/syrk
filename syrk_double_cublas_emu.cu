@@ -35,6 +35,21 @@ int main(int argc, char* argv[]) {
     CUBLAS_CHECK(cublasCreate(&cublasH));
     CUDA_CHECK(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
     CUBLAS_CHECK(cublasSetStream(cublasH, stream));
+    CUBLAS_CHECK(cublasSetEmulationStrategy(
+        cublasH, CUBLAS_EMULATION_STRATEGY_EAGER));  // CUBLAS_EMULATION_STRATEGY_EAGER
+                                                     // CUBLAS_EMULATION_STRATEGY_DEFAULT
+                                                     // CUBLAS_EMULATION_STRATEGY_PERFORMANT
+    CUBLAS_CHECK(cublasSetEmulationSpecialValuesSupport(
+        cublasH,
+        CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_DEFAULT));  // CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_DEFAULT
+                                                          // CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_NONE
+                                                          // CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_INFINITY
+                                                          // CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_NAN
+    CUBLAS_CHECK(cublasSetMathMode(cublasH, CUBLAS_FP64_EMULATED_FIXEDPOINT_MATH));
+    CUBLAS_CHECK(cublasSetFixedPointEmulationMantissaControl(
+        cublasH,
+        CUDA_EMULATION_MANTISSA_CONTROL_DYNAMIC));  // CUDA_EMULATION_MANTISSA_CONTROL_DYNAMIC
+                                                    // CUDA_EMULATION_MANTISSA_CONTROL_FIXED
 
     /* step 2: copy A to device */
     CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_A), sizeof(double) * lda * k));

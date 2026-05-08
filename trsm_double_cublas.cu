@@ -10,7 +10,7 @@
 
 #include "utils.h"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     cublasHandle_t cublasH = NULL;
 
     long m = 16384, n = 16384;
@@ -22,21 +22,18 @@ int main(int argc, char *argv[]) {
 
     long lda = m, ldb = m;
 
-    double *d_A = nullptr;
-    double *d_B = nullptr;
-    double *d_B_custom = nullptr;
+    double* d_A = nullptr;
+    double* d_B = nullptr;
+    double* d_B_custom = nullptr;
 
     double one = 1, zero = 0;
 
     CUBLAS_CHECK(cublasCreate(&cublasH));
 
     /* step 2: copy A to device */
-    CUDA_CHECK(
-        cudaMalloc(reinterpret_cast<void **>(&d_A), sizeof(double) * lda * m));
-    CUDA_CHECK(
-        cudaMalloc(reinterpret_cast<void **>(&d_B), sizeof(double) * lda * n));
-    CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_B_custom),
-                          sizeof(double) * ldb * n));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_A), sizeof(double) * lda * m));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_B), sizeof(double) * lda * n));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_B_custom), sizeof(double) * ldb * n));
 
     dim3 grida((m + 15) / 16, (m + 15) / 16);
     dim3 gridb((m + 15) / 16, (n + 15) / 16);
@@ -75,10 +72,9 @@ int main(int argc, char *argv[]) {
     CUDA_CHECK(cudaDeviceSynchronize());
 
     std::cout << "[cublas dtrsm] " << "m: " << m << ", n: " << n << ", "
-              << "latency: " << time1 << " ms, " << (long)m * m * n / 2 / time1 / 1e9
-              << " TFLOPS" << std::endl;
-    std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB"
+              << "latency: " << time1 << " ms, " << (long)m * m * n / 2 / time1 / 1e9 << " TFLOPS"
               << std::endl;
+    std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB" << std::endl;
 
     /* free resources */
     CUDA_CHECK(cudaFree(d_A));

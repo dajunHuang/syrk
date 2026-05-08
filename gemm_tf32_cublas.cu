@@ -1,6 +1,6 @@
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
-#include <curand.h> // 仍然使用 cuRAND 生成 float 数据
+#include <curand.h>  // 仍然使用 cuRAND 生成 float 数据
 
 #include <algorithm>
 #include <cstdio>
@@ -9,32 +9,32 @@
 #include <vector>
 
 // --- 错误检查宏 (与之前相同) ---
-#define CUDA_CHECK(call)                                                      \
-    do {                                                                      \
-        cudaError_t err = call;                                               \
-        if (err != cudaSuccess) {                                             \
-            fprintf(stderr, "CUDA Error at %s:%d: %s\n", __FILE__, __LINE__,  \
-                    cudaGetErrorString(err));                                 \
-            exit(EXIT_FAILURE);                                               \
-        }                                                                     \
+#define CUDA_CHECK(call)                                                     \
+    do {                                                                     \
+        cudaError_t err = call;                                              \
+        if (err != cudaSuccess) {                                            \
+            fprintf(stderr, "CUDA Error at %s:%d: %s\n", __FILE__, __LINE__, \
+                    cudaGetErrorString(err));                                \
+            exit(EXIT_FAILURE);                                              \
+        }                                                                    \
     } while (0)
 
-#define CUBLAS_CHECK(call)                                                    \
-    do {                                                                      \
-        cublasStatus_t status = call;                                         \
-        if (status != CUBLAS_STATUS_SUCCESS) {                                \
-            fprintf(stderr, "cuBLAS Error at %s:%d\n", __FILE__, __LINE__);   \
-            exit(EXIT_FAILURE);                                               \
-        }                                                                     \
+#define CUBLAS_CHECK(call)                                                  \
+    do {                                                                    \
+        cublasStatus_t status = call;                                       \
+        if (status != CUBLAS_STATUS_SUCCESS) {                              \
+            fprintf(stderr, "cuBLAS Error at %s:%d\n", __FILE__, __LINE__); \
+            exit(EXIT_FAILURE);                                             \
+        }                                                                   \
     } while (0)
 
-#define CURAND_CHECK(call)                                                    \
-    do {                                                                      \
-        curandStatus_t status = call;                                         \
-        if (status != CURAND_STATUS_SUCCESS) {                                \
-            fprintf(stderr, "cuRAND Error at %s:%d\n", __FILE__, __LINE__);    \
-            exit(EXIT_FAILURE);                                               \
-        }                                                                     \
+#define CURAND_CHECK(call)                                                  \
+    do {                                                                    \
+        curandStatus_t status = call;                                       \
+        if (status != CURAND_STATUS_SUCCESS) {                              \
+            fprintf(stderr, "cuRAND Error at %s:%d\n", __FILE__, __LINE__); \
+            exit(EXIT_FAILURE);                                             \
+        }                                                                   \
     } while (0)
 
 #define CUDA_CHECK_LAST_ERROR() CUDA_CHECK(cudaGetLastError())
@@ -43,13 +43,13 @@
 #define NUM_REPEAT 10
 
 // --- 使用 cuRAND 在 GPU 上直接生成 float 随机矩阵 ---
-void generateUniformMatrixFloat(curandGenerator_t &gen, float *d_mat, int rows, int cols) {
+void generateUniformMatrixFloat(curandGenerator_t& gen, float* d_mat, int rows, int cols) {
     size_t num_elements = static_cast<size_t>(rows) * cols;
     // 直接使用 cuRAND 生成 float 类型的均匀分布随机数到目标设备指针
     CURAND_CHECK(curandGenerateUniform(gen, d_mat, num_elements));
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     cublasHandle_t cublasH = NULL;
     cudaStream_t stream = NULL;
     curandGenerator_t curandG = NULL;
@@ -63,9 +63,9 @@ int main(int argc, char *argv[]) {
     }
 
     // --- 数据类型仍然是 float* ---
-    float *d_A = nullptr;
-    float *d_B = nullptr;
-    float *d_C = nullptr;
+    float* d_A = nullptr;
+    float* d_B = nullptr;
+    float* d_C = nullptr;
 
     float one = 1.0f, zero = 0.0f;
 
@@ -103,9 +103,8 @@ int main(int argc, char *argv[]) {
     // Warmup
     for (int i = 0; i < NUM_WARMUP; ++i) {
         // --- API 调用仍然是 cublasSgemm ---
-        CUBLAS_CHECK(cublasSgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k,
-                                 &one, d_A, lda, d_B, ldb, &zero, d_C,
-                                 ldc));
+        CUBLAS_CHECK(cublasSgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k, &one, d_A, lda, d_B,
+                                 ldb, &zero, d_C, ldc));
     }
     CUDA_CHECK(cudaStreamSynchronize(stream));
 
@@ -114,9 +113,8 @@ int main(int argc, char *argv[]) {
         CUDA_CHECK(cudaStreamSynchronize(stream));
         CUDA_CHECK(cudaEventRecord(start, stream));
 
-        CUBLAS_CHECK(cublasSgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k,
-                                 &one, d_A, lda, d_B, ldb, &zero, d_C,
-                                 ldc));
+        CUBLAS_CHECK(cublasSgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k, &one, d_A, lda, d_B,
+                                 ldb, &zero, d_C, ldc));
 
         CUDA_CHECK(cudaStreamSynchronize(stream));
         CUDA_CHECK(cudaEventRecord(stop, stream));
@@ -129,11 +127,9 @@ int main(int argc, char *argv[]) {
 
     CUDA_CHECK(cudaStreamSynchronize(stream));
 
-    std::cout << "[cublas sgemm_tf32] " << "m: " << m << ", n: " << n << ", k: " << k
-              << ", "
+    std::cout << "[cublas sgemm_tf32] " << "m: " << m << ", n: " << n << ", k: " << k << ", "
               << "latency: " << time << " ms, "
-              << "Effective TFLOPS: " << 2.0 * m * n * k / time / 1e9
-              << " TFLOPS, " << std::endl;
+              << "Effective TFLOPS: " << 2.0 * m * n * k / time / 1e9 << " TFLOPS, " << std::endl;
 
     /* free resources */
     CUDA_CHECK(cudaFree(d_A));

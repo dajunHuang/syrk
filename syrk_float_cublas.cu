@@ -14,7 +14,7 @@
 #define NUM_WARPUP 2
 #define NUM_REPEAT 10
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     cublasHandle_t cublasH = NULL;
     cudaStream_t stream = NULL;
 
@@ -27,8 +27,8 @@ int main(int argc, char *argv[]) {
 
     long lda = n, ldc = n;
 
-    float *d_A = nullptr;
-    float *d_C = nullptr;
+    float* d_A = nullptr;
+    float* d_C = nullptr;
 
     float one = 1, zero = 0;
 
@@ -37,8 +37,8 @@ int main(int argc, char *argv[]) {
     CUBLAS_CHECK(cublasSetStream(cublasH, stream));
 
     /* step 2: copy A to device */
-    CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_A), sizeof(float) * lda * k));
-    CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_C), sizeof(float) * ldc * n));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_A), sizeof(float) * lda * k));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_C), sizeof(float) * ldc * n));
 
     generateUniformMatrixFloat(d_A, lda, k);
     CUDA_CHECK(cudaDeviceSynchronize());
@@ -49,8 +49,8 @@ int main(int argc, char *argv[]) {
     CUDA_CHECK(cudaEventCreate(&start));
     CUDA_CHECK(cudaEventCreate(&stop));
     for (int i{0}; i < NUM_WARPUP; ++i) {
-        cublasSsyrk(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one, d_A,
-                    lda, &zero, d_C, ldc);
+        cublasSsyrk(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one, d_A, lda, &zero, d_C,
+                    ldc);
     }
     CUDA_CHECK(cudaStreamSynchronize(stream));
     for (int i{0}; i < NUM_REPEAT; ++i) {
@@ -58,8 +58,8 @@ int main(int argc, char *argv[]) {
         CUDA_CHECK(cudaStreamSynchronize(stream));
         CUDA_CHECK(cudaEventRecord(start, stream));
 
-        cublasSsyrk(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one, d_A,
-                    lda, &zero, d_C, ldc);
+        cublasSsyrk(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one, d_A, lda, &zero, d_C,
+                    ldc);
 
         CUDA_CHECK(cudaStreamSynchronize(stream));
         CUDA_CHECK(cudaEventRecord(stop, stream));
@@ -74,10 +74,9 @@ int main(int argc, char *argv[]) {
     CUDA_CHECK(cudaStreamSynchronize(stream));
 
     std::cout << "[cublas ssyrk] " << "m: " << n << ", n: " << k << ", "
-              << "latency: " << time1 << " ms, " << (long)n * n * k / time1 / 1e9
-              << " TFLOPS" << std::endl;
-    std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB"
+              << "latency: " << time1 << " ms, " << (long)n * n * k / time1 / 1e9 << " TFLOPS"
               << std::endl;
+    std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB" << std::endl;
 
     /* free resources */
     CUDA_CHECK(cudaFree(d_A));

@@ -12,27 +12,25 @@
 
 // A * X = alpha * B
 // A is m * m col major Lower triangular, B is m * n col major, overwrited by X
-void trsm(cublasHandle_t cublasH, long m, long n, float alpha, float *A, long lda,
-          float *B, long ldb, long nb) {
+void trsm(cublasHandle_t cublasH, long m, long n, float alpha, float* A, long lda, float* B,
+          long ldb, long nb) {
     float sonefloat = 1.0, snegonefloat = -1.0;
     if (m <= nb) {
-        CUBLAS_CHECK(cublasStrsm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER,
-                                 CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &alpha, A,
-                                 lda, B, ldb));
+        CUBLAS_CHECK(cublasStrsm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N,
+                                 CUBLAS_DIAG_NON_UNIT, m, n, &alpha, A, lda, B, ldb));
         return;
     }
 
     trsm(cublasH, m / 2, n, alpha, A, lda, B, ldb, nb);
 
     long left = m - m / 2;
-    CUBLAS_CHECK(cublasSgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, left, n, m / 2,
-                             &snegonefloat, A + m / 2, lda, B, ldb, &sonefloat,
-                             B + m / 2, ldb));
+    CUBLAS_CHECK(cublasSgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, left, n, m / 2, &snegonefloat,
+                             A + m / 2, lda, B, ldb, &sonefloat, B + m / 2, ldb));
 
     trsm(cublasH, left, n, alpha, A + m / 2 + m / 2 * lda, lda, B + m / 2, ldb, nb);
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     cublasHandle_t cublasH = NULL;
 
     long m = 16384, n = 16384, nb = 512;
@@ -47,18 +45,17 @@ int main(int argc, char *argv[]) {
 
     long lda = m, ldb = m;
 
-    float *d_A = nullptr;
-    float *d_B = nullptr;
-    float *d_B_custom = nullptr;
+    float* d_A = nullptr;
+    float* d_B = nullptr;
+    float* d_B_custom = nullptr;
 
     float one = 1, zero = 0;
 
     CUBLAS_CHECK(cublasCreate(&cublasH));
 
-    CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_A), sizeof(float) * lda * m));
-    CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_B), sizeof(float) * lda * n));
-    CUDA_CHECK(
-        cudaMalloc(reinterpret_cast<void **>(&d_B_custom), sizeof(float) * ldb * n));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_A), sizeof(float) * lda * m));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_B), sizeof(float) * lda * n));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_B_custom), sizeof(float) * ldb * n));
 
     dim3 grida((m + 15) / 16, (m + 15) / 16);
     dim3 gridb((m + 15) / 16, (n + 15) / 16);
@@ -97,29 +94,27 @@ int main(int argc, char *argv[]) {
     CUDA_CHECK(cudaDeviceSynchronize());
 
     if (check) {
-        float *d_B_cublas = nullptr;
-        CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_B_cublas),
-                              sizeof(float) * ldb * n));
+        float* d_B_cublas = nullptr;
+        CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_B_cublas), sizeof(float) * ldb * n));
         CUDA_CHECK(cudaMemcpy(d_B_cublas, d_B, ldb * n, cudaMemcpyDeviceToDevice));
         cublasStrsm(cublasH, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N,
                     CUBLAS_DIAG_NON_UNIT, m, n, &one, d_A, lda, d_B_cublas, ldb);
         CUDA_CHECK(cudaDeviceSynchronize());
         CUDA_CHECK(cudaDeviceSynchronize());
         float sonedouble = 1.0, snegonedobule = -1.0;
-        cublasSgeam(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, m, n, &sonedouble, d_B_custom,
-                    ldb, &snegonedobule, d_B_cublas, ldb, d_B_custom, ldb);
+        cublasSgeam(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, m, n, &sonedouble, d_B_custom, ldb,
+                    &snegonedobule, d_B_cublas, ldb, d_B_custom, ldb);
         float norm_custom = nrm2(cublasH, m, n, d_B_custom, ldb),
               norm_cublas = nrm2(cublasH, m, n, d_B_cublas, ldb);
-        printf("norm_custom: %.6e, norm_cublas: %.6e, forward error: %.6e\n",
-               norm_custom, norm_cublas, norm_custom / norm_cublas);
+        printf("norm_custom: %.6e, norm_cublas: %.6e, forward error: %.6e\n", norm_custom,
+               norm_cublas, norm_custom / norm_cublas);
         CUDA_CHECK(cudaFree(d_B_cublas));
     }
 
     std::cout << "[custom strsm] " << "m: " << m << ", n: " << n << ", "
-              << "latency: " << time1 << " ms, " << (long)m * m * n / 2 / time1 / 1e9
-              << " TFLOPS" << std::endl;
-    std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB"
+              << "latency: " << time1 << " ms, " << (long)m * m * n / 2 / time1 / 1e9 << " TFLOPS"
               << std::endl;
+    std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB" << std::endl;
 
     /* free resources */
     CUDA_CHECK(cudaFree(d_A));

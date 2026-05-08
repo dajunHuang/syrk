@@ -1,5 +1,6 @@
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
+#include <curand.h>
 
 #include <algorithm>
 #include <cassert>
@@ -25,9 +26,10 @@ int main(int argc, char* argv[]) {
         k = atoi(argv[2]);
     }
 
-    long lda = n, ldc = n;
+    long lda = n, ldb = n, ldc = n;
 
     double* d_A = nullptr;
+    double* d_B = nullptr;
     double* d_C = nullptr;
 
     double one = 1, zero = 0;
@@ -35,12 +37,29 @@ int main(int argc, char* argv[]) {
     CUBLAS_CHECK(cublasCreate(&cublasH));
     CUDA_CHECK(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
     CUBLAS_CHECK(cublasSetStream(cublasH, stream));
+    CUBLAS_CHECK(cublasSetEmulationStrategy(
+        cublasH, CUBLAS_EMULATION_STRATEGY_EAGER));  // CUBLAS_EMULATION_STRATEGY_EAGER
+                                                     // CUBLAS_EMULATION_STRATEGY_DEFAULT
+                                                     // CUBLAS_EMULATION_STRATEGY_PERFORMANT
+    CUBLAS_CHECK(cublasSetEmulationSpecialValuesSupport(
+        cublasH,
+        CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_DEFAULT));  // CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_DEFAULT
+                                                          // CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_NONE
+                                                          // CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_INFINITY
+                                                          // CUDA_EMULATION_SPECIAL_VALUES_SUPPORT_NAN
+    CUBLAS_CHECK(cublasSetMathMode(cublasH, CUBLAS_FP64_EMULATED_FIXEDPOINT_MATH));
+    CUBLAS_CHECK(cublasSetFixedPointEmulationMantissaControl(
+        cublasH,
+        CUDA_EMULATION_MANTISSA_CONTROL_DYNAMIC));  // CUDA_EMULATION_MANTISSA_CONTROL_DYNAMIC
+                                                    // CUDA_EMULATION_MANTISSA_CONTROL_FIXED
 
     /* step 2: copy A to device */
     CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_A), sizeof(double) * lda * k));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_B), sizeof(double) * ldb * k));
     CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_C), sizeof(double) * ldc * n));
 
     generateUniformMatrixDouble(d_A, lda, k);
+    generateUniformMatrixDouble(d_B, ldb, k);
     CUDA_CHECK(cudaDeviceSynchronize());
 
     cudaEvent_t start, stop;
@@ -49,17 +68,17 @@ int main(int argc, char* argv[]) {
     CUDA_CHECK(cudaEventCreate(&start));
     CUDA_CHECK(cudaEventCreate(&stop));
     for (int i{0}; i < NUM_WARPUP; ++i) {
-        cublasDsyrk(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one, d_A, lda, &zero, d_C,
-                    ldc);
+        cublasDsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one, d_A, lda, d_B, ldb,
+                     &zero, d_C, ldc);
     }
     CUDA_CHECK(cudaStreamSynchronize(stream));
     for (int i{0}; i < NUM_REPEAT; ++i) {
-        PUSH_RANGE("syrk_double_cublas", i);
+        PUSH_RANGE("syr2k_double_cublas", i);
         CUDA_CHECK(cudaStreamSynchronize(stream));
         CUDA_CHECK(cudaEventRecord(start, stream));
 
-        cublasDsyrk(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one, d_A, lda, &zero, d_C,
-                    ldc);
+        cublasDsyr2k(cublasH, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, n, k, &one, d_A, lda, d_B, ldb,
+                     &zero, d_C, ldc);
 
         CUDA_CHECK(cudaStreamSynchronize(stream));
         CUDA_CHECK(cudaEventRecord(stop, stream));
@@ -73,13 +92,14 @@ int main(int argc, char* argv[]) {
 
     CUDA_CHECK(cudaStreamSynchronize(stream));
 
-    std::cout << "[cublas dsyrk] " << "m: " << n << ", n: " << k << ", "
-              << "latency: " << time1 << " ms, " << (long)n * n * k / time1 / 1e9 << " TFLOPS"
+    std::cout << "[cublas dsyr2k] " << "m: " << n << ", n: " << k << ", "
+              << "latency: " << time1 << " ms, " << 2 * (long)n * n * k / time1 / 1e9 << " TFLOPS"
               << std::endl;
     std::cout << "[Free memory] " << free_mem() / 1024 / 1024 / 1024 << " GB" << std::endl;
 
     /* free resources */
     CUDA_CHECK(cudaFree(d_A));
+    CUDA_CHECK(cudaFree(d_B));
     CUDA_CHECK(cudaFree(d_C));
 
     CUBLAS_CHECK(cublasDestroy(cublasH));
