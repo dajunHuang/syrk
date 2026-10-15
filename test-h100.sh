@@ -1,15 +1,16 @@
 #!/bin/bash
 
-programs=("syr2k_double" "syr2k_float" "syrk_double" "syrk_float" "trmm_double" "trmm_float")
+# programs=("syr2k_double" "syr2k_float" "syrk_double" "syrk_float" "trmm_double" "trmm_float")
+programs=("syrk_float" "trmm_float")
 
-ms0=(  128   256   512  1024  2048  4096  8192 16384 24576 32768 40960)
-ns0=(  128   256   512  1024  2048  4096  8192 16384 24576 32768 40960)
+ms0=(32768 40960 49152 572344)
+ns0=(32768 40960 49152 572344)
 # ms1=(40960 40960 40960 40960 40960 40960 40960 40960 40960)
 # ns1=(  128   256   512  1024  2048  4096  8192 16384 24576)
 # ms2=(  128   256   512  1024  2048  4096  8192 16384 24576)
 # ns2=(40960 40960 40960 40960 40960 40960 40960 40960 40960)
 
-nb_values=(128 256 512 1024 2048 4096)
+nb_values=(4096)
 
 mkdir -p result/h100
 

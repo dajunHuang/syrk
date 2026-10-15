@@ -13,7 +13,7 @@
 #include "utils.h"
 
 #define NUM_WARPUP 2
-#define NUM_REPEAT 10
+#define NUM_REPEAT 4
 
 // C = alpha * A * B^T + alpha * B * A^T + beta * C
 // A is n * k col major, B is n * k col major, C is n * n col major
