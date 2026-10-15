@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
     cudaEvent_t start, stop;
     float time1 = 0, temp_time = 0;
 
-    CUDA_CHECK(cudaMemcpy(d_B_custom, d_B, ldb * n, cudaMemcpyDeviceToDevice));
+    CUDA_CHECK(cudaMemcpy(d_B_custom, d_B, sizeof(float) * ldb * n, cudaMemcpyDeviceToDevice));
     CUDA_CHECK(cudaEventCreate(&start));
     CUDA_CHECK(cudaEventCreate(&stop));
 
@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
 
     CUDA_CHECK(cudaDeviceSynchronize());
 
-    CUDA_CHECK(cudaMemcpy(d_B_custom, d_B, ldb * n, cudaMemcpyDeviceToDevice));
+    CUDA_CHECK(cudaMemcpy(d_B_custom, d_B, sizeof(float) * ldb * n, cudaMemcpyDeviceToDevice));
     CUDA_CHECK(cudaDeviceSynchronize());
     CUDA_CHECK(cudaEventRecord(start));
 
