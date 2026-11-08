@@ -25,9 +25,10 @@ void trsm(cublasHandle_t cublasH, long m, long n, double alpha, double* A, long 
 
     long left = m - m / 2;
     CUBLAS_CHECK(cublasDgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, left, n, m / 2, &snegonedobule,
-                             A + m / 2, lda, B, ldb, &sonedouble, B + m / 2, ldb));
+                             A + m / 2, lda, B, ldb, &alpha, B + m / 2, ldb));
 
-    trsm(cublasH, left, n, alpha, A + m / 2 + m / 2 * lda, lda, B + m / 2, ldb, nb);
+    // B2 is already scaled by alpha in the GEMM update.
+    trsm(cublasH, left, n, sonedouble, A + m / 2 + m / 2 * lda, lda, B + m / 2, ldb, nb);
 }
 
 int main(int argc, char* argv[]) {

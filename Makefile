@@ -7,6 +7,7 @@ all:  $(OBJ_FILES)
 
 %: %.cu
 	nvcc -gencode arch=compute_80,code=sm_80 \
+     -gencode arch=compute_89,code=sm_89 \
      -gencode arch=compute_90,code=sm_90 \
      -I . $< -o $@ \
      -l cublas -l curand
